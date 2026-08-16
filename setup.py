@@ -29,6 +29,11 @@ setup(
         ],
         "mjlab": ["mjlab", "robot_learning_lab_zoo[mjlab]"],
     },
+    entry_points={
+        "mjlab.tasks": [
+            "robot_learning_lab_tasks=robot_learning_lab_tasks.tasks.mjlab"
+        ]
+    },
     python_requires=">=3.10",
     zip_safe=False,
 )
