@@ -1,0 +1,23 @@
+[package]
+version = "0.1.0"
+category = "robotics"
+readme = "README.md"
+title = "Robot Learning Lab Tasks"
+author = "Soulde Developers"
+maintainer = "Soulde Developers"
+description = "Isaac Lab and MJLab tasks for robot learning"
+repository = "https://github.com/soulde/robot_learning_lab_tasks"
+keywords = ["robotics", "reinforcement-learning", "isaaclab", "mjlab"]
+
+[dependencies]
+"isaaclab" = {}
+"isaaclab_tasks" = {}
+"robot_learning_lab_zoo" = {}
+
+[core]
+reloadable = false
+
+[[python.module]]
+name = "robot_learning_lab_tasks.tasks.isaaclab"
+
+[isaac_lab_settings]
