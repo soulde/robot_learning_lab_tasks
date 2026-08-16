@@ -21,7 +21,12 @@ setup(
     include_package_data=True,
     install_requires=["numpy>=1.23"],
     extras_require={
-        "isaaclab": ["isaaclab", "isaaclab_tasks", "robot_learning_lab_zoo[isaaclab]"],
+        "isaaclab": [
+            "isaaclab",
+            "isaaclab_tasks",
+            "robot_learning_lab_datasets",
+            "robot_learning_lab_zoo[isaaclab]",
+        ],
         "mjlab": ["mjlab", "robot_learning_lab_zoo[mjlab]"],
     },
     python_requires=">=3.10",

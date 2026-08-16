@@ -13,6 +13,7 @@ keywords = ["robotics", "reinforcement-learning", "isaaclab", "mjlab"]
 "isaaclab" = {}
 "isaaclab_tasks" = {}
 "robot_learning_lab_zoo" = {}
+"robot_learning_lab_datasets" = {}
 
 [core]
 reloadable = false
