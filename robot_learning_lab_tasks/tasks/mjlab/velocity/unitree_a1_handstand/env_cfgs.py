@@ -9,8 +9,7 @@ from mjlab.sensor import ContactMatch, ContactSensorCfg
 from mjlab.tasks.velocity import mdp
 
 from robot_learning_lab_tasks.tasks.mjlab.velocity import rewards
-from robot_learning_lab_tasks.tasks.mjlab.velocity.quadruped_env_cfgs import quadruped_rough_env_cfg
-from robot_learning_lab_tasks.tasks.mjlab.velocity.unitree_a1.env_cfgs import UNITREE_A1_VELOCITY_CFG
+from robot_learning_lab_tasks.tasks.mjlab.velocity.unitree_a1.env_cfgs import unitree_a1_rough_env_cfg
 
 AIR_FOOT_GEOM_NAMES = ("RR_foot_collision", "RL_foot_collision")
 AIR_FOOT_SITE_NAMES = ("RR_foot", "RL_foot")
@@ -18,7 +17,7 @@ AIR_FOOT_SITE_NAMES = ("RR_foot", "RL_foot")
 
 def unitree_a1_handstand_rough_env_cfg(play: bool = False) -> ManagerBasedRlEnvCfg:
     """Create the Unitree A1 rear-leg handstand task on rough terrain."""
-    cfg = quadruped_rough_env_cfg(UNITREE_A1_VELOCITY_CFG, play=play)
+    cfg = unitree_a1_rough_env_cfg(play=play)
     cfg.episode_length_s = 10.0 if not play else int(1e9)
 
     thigh_ground_cfg = ContactSensorCfg(

@@ -1,4 +1,4 @@
-"""Unitree A1 velocity environment configurations."""
+"""Zsibot ZSL1 velocity environment configurations."""
 
 from copy import deepcopy
 
@@ -11,26 +11,26 @@ from mjlab.sensor import ContactMatch, ContactSensorCfg, ObjRef, RayCastSensorCf
 from mjlab.tasks.velocity import mdp
 from mjlab.tasks.velocity.mdp import UniformVelocityCommandCfg
 from mjlab.tasks.velocity.velocity_env_cfg import make_velocity_env_cfg
-from robot_learning_lab_zoo.assets.mjlab.unitree_a1 import (
-    UNITREE_A1_ACTION_SCALE, UNITREE_A1_CFG, UNITREE_A1_FOOT_BODY_NAMES,
-    UNITREE_A1_FOOT_GEOM_NAMES, UNITREE_A1_FOOT_SITE_NAMES, UNITREE_A1_JOINT_NAMES,
+from robot_learning_lab_zoo.assets.mjlab.zsibot_zsl1 import (
+    ZSIBOT_ZSL1_ACTION_SCALE, ZSIBOT_ZSL1_CFG, ZSIBOT_ZSL1_FOOT_BODY_NAMES,
+    ZSIBOT_ZSL1_FOOT_GEOM_NAMES, ZSIBOT_ZSL1_FOOT_SITE_NAMES, ZSIBOT_ZSL1_JOINT_NAMES,
 )
 
 from robot_learning_lab_tasks.tasks.mjlab.velocity import rewards
 
-BASE_BODY = "base"
-FOOT_BODIES = UNITREE_A1_FOOT_BODY_NAMES
-FOOT_SITES = UNITREE_A1_FOOT_SITE_NAMES
-FOOT_GEOMS = UNITREE_A1_FOOT_GEOM_NAMES
+BASE_BODY = "BASE_LINK"
+FOOT_BODIES = ZSIBOT_ZSL1_FOOT_BODY_NAMES
+FOOT_SITES = ZSIBOT_ZSL1_FOOT_SITE_NAMES
+FOOT_GEOMS = ZSIBOT_ZSL1_FOOT_GEOM_NAMES
 
 
-def unitree_a1_actions_cfg():
-    return {"joint_pos": JointPositionActionCfg(entity_name="robot", actuator_names=UNITREE_A1_JOINT_NAMES,
-        scale=UNITREE_A1_ACTION_SCALE,
+def zsibot_zsl1_actions_cfg():
+    return {"joint_pos": JointPositionActionCfg(entity_name="robot", actuator_names=ZSIBOT_ZSL1_JOINT_NAMES,
+        scale=ZSIBOT_ZSL1_ACTION_SCALE,
         clip={".*": (-100.0, 100.0)}, use_default_offset=True, preserve_order=True)}
 
 
-def unitree_a1_rewards_cfg():
+def zsibot_zsl1_rewards_cfg():
     return {
         "track_linear_velocity": RewardTermCfg(func=mdp.track_linear_velocity, weight=3.0,
             params={"command_name": "twist", "std": 0.5}),
@@ -41,51 +41,45 @@ def unitree_a1_rewards_cfg():
             params={"asset_cfg": SceneEntityCfg("robot", body_names=(BASE_BODY,))}),
         "dof_pos_limits": RewardTermCfg(func=envs_mdp.joint_pos_limits, weight=-5.0),
         "action_rate_l2": RewardTermCfg(func=envs_mdp.action_rate_l2, weight=-0.01),
-        "joint_torques_l2": RewardTermCfg(func=envs_mdp.joint_torques_l2, weight=-2.5e-5,
-            params={"asset_cfg": SceneEntityCfg("robot", joint_names=UNITREE_A1_JOINT_NAMES)}),
-        "joint_acc_l2": RewardTermCfg(func=envs_mdp.joint_acc_l2, weight=-2.5e-7,
-            params={"asset_cfg": SceneEntityCfg("robot", joint_names=UNITREE_A1_JOINT_NAMES)}),
-        "joint_power": RewardTermCfg(func=mdp.electrical_power_cost, weight=-2.0e-5,
-            params={"asset_cfg": SceneEntityCfg("robot", joint_names=UNITREE_A1_JOINT_NAMES)}),
-        "air_time": RewardTermCfg(func=mdp.feet_air_time, weight=0.0,
+        "air_time": RewardTermCfg(func=mdp.feet_air_time, weight=0.1,
             params={"sensor_name": "feet_ground_contact", "threshold_min": 0.05, "threshold_max": 0.5,
                     "command_name": "twist", "command_threshold": 0.5}),
-        "foot_slip": RewardTermCfg(func=mdp.feet_slip, weight=0.0,
+        "foot_slip": RewardTermCfg(func=mdp.feet_slip, weight=-0.1,
             params={"sensor_name": "feet_ground_contact", "command_name": "twist", "command_threshold": 0.05,
                     "asset_cfg": SceneEntityCfg("robot", site_names=FOOT_SITES)}),
         "stand_still": RewardTermCfg(func=rewards.stand_still, weight=-2.0,
-            params={"command_name": "twist", "asset_cfg": SceneEntityCfg("robot", joint_names=UNITREE_A1_JOINT_NAMES)}),
+            params={"command_name": "twist", "asset_cfg": SceneEntityCfg("robot", joint_names=ZSIBOT_ZSL1_JOINT_NAMES)}),
         "joint_pos_penalty": RewardTermCfg(func=rewards.joint_pos_penalty, weight=-1.0,
-            params={"command_name": "twist", "asset_cfg": SceneEntityCfg("robot", joint_names=UNITREE_A1_JOINT_NAMES),
+            params={"command_name": "twist", "asset_cfg": SceneEntityCfg("robot", joint_names=ZSIBOT_ZSL1_JOINT_NAMES),
                     "stand_still_scale": 5.0, "velocity_threshold": 0.5, "command_threshold": 0.1}),
         "joint_mirror": RewardTermCfg(func=rewards.joint_mirror, weight=-0.05,
-            params={"asset_cfg": SceneEntityCfg("robot", joint_names=UNITREE_A1_JOINT_NAMES),
-                    "mirror_joints": [["FR_(hip|thigh|calf).*", "RL_(hip|thigh|calf).*"],
-                                      ["FL_(hip|thigh|calf).*", "RR_(hip|thigh|calf).*"]]}),
+            params={"asset_cfg": SceneEntityCfg("robot", joint_names=ZSIBOT_ZSL1_JOINT_NAMES),
+                    "mirror_joints": [["FAR_(ABAD|HIP|KNEE).*", "RBL_(ABAD|HIP|KNEE).*"],
+                                      ["FBL_(ABAD|HIP|KNEE).*", "RAR_(ABAD|HIP|KNEE).*"]]}),
         "feet_contact_without_cmd": RewardTermCfg(func=rewards.feet_contact_without_cmd, weight=0.1,
             params={"command_name": "twist", "sensor_name": "feet_ground_contact"}),
         "feet_height_body": RewardTermCfg(func=rewards.feet_height_body, weight=-5.0,
             params={"command_name": "twist", "asset_cfg": SceneEntityCfg("robot", body_names=FOOT_BODIES),
                     "target_height": -0.2, "tanh_mult": 2.0}),
         "upward": RewardTermCfg(func=rewards.upward, weight=1.0),
-        "feet_air_time_variance": RewardTermCfg(func=rewards.feet_air_time_variance, weight=0.0,
+        "feet_air_time_variance": RewardTermCfg(func=rewards.feet_air_time_variance, weight=-1.0,
             params={"sensor_name": "feet_ground_contact"}),
-        "feet_gait": RewardTermCfg(func=rewards.feet_gait, weight=0.0,
+        "feet_gait": RewardTermCfg(func=rewards.feet_gait, weight=0.5,
             params={"std": 0.7071067811865476, "command_name": "twist", "max_err": 0.2,
                     "velocity_threshold": 0.5, "command_threshold": 0.1,
-                    "synced_feet_pair_names": (("FL_foot_collision", "RR_foot_collision"),
-                                                ("FR_foot_collision", "RL_foot_collision")),
+                    "synced_feet_pair_names": (("FL_FOOT_LINK_collision", "RR_FOOT_LINK_collision"),
+                                                ("FR_FOOT_LINK_collision", "RL_FOOT_LINK_collision")),
                     "sensor_name": "feet_ground_contact"}),
         "self_collisions": RewardTermCfg(func=mdp.self_collision_cost, weight=-1.0,
             params={"sensor_name": "self_collision", "force_threshold": 10.0}),
     }
 
 
-def unitree_a1_rough_env_cfg(play: bool = False) -> ManagerBasedRlEnvCfg:
+def zsibot_zsl1_rough_env_cfg(play: bool = False) -> ManagerBasedRlEnvCfg:
     cfg = make_velocity_env_cfg()
     cfg.sim.mujoco.ccd_iterations = 500; cfg.sim.contact_sensor_maxmatch = 500
     cfg.sim.nconmax = 500; cfg.sim.njmax = 1000
-    cfg.scene.entities = {"robot": deepcopy(UNITREE_A1_CFG)}
+    cfg.scene.entities = {"robot": deepcopy(ZSIBOT_ZSL1_CFG)}
     for sensor in cfg.scene.sensors or ():
         if sensor.name == "terrain_scan":
             assert isinstance(sensor, RayCastSensorCfg) and isinstance(sensor.frame, ObjRef)
@@ -107,7 +101,7 @@ def unitree_a1_rough_env_cfg(play: bool = False) -> ManagerBasedRlEnvCfg:
         secondary=ContactMatch(mode="body", pattern="terrain"), fields=("found", "force"),
         reduce="none", num_slots=1, history_length=4)
     cfg.scene.sensors = (cfg.scene.sensors or ()) + (feet_contact, self_collision, nonfoot_contact)
-    cfg.rewards = unitree_a1_rewards_cfg()
+    cfg.rewards = zsibot_zsl1_rewards_cfg()
     cfg.rewards["undesired_contacts"] = RewardTermCfg(func=mdp.self_collision_cost, weight=-1.0,
         params={"sensor_name": "nonfoot_ground_contact", "force_threshold": 1.0})
     for group in cfg.observations.values():
@@ -120,7 +114,7 @@ def unitree_a1_rough_env_cfg(play: bool = False) -> ManagerBasedRlEnvCfg:
         group.terms["projected_gravity"].params = {"asset_cfg": SceneEntityCfg("robot")}
     cfg.observations["actor"].terms.pop("base_lin_vel", None)
     cfg.observations["actor"].terms.pop("height_scan", None)
-    cfg.actions = unitree_a1_actions_cfg()
+    cfg.actions = zsibot_zsl1_actions_cfg()
     cfg.viewer.body_name = BASE_BODY
     cfg.events["foot_friction"].params["asset_cfg"].geom_names = FOOT_GEOMS
     cfg.events["base_com"].params["asset_cfg"].body_names = (BASE_BODY,)
@@ -133,8 +127,8 @@ def unitree_a1_rough_env_cfg(play: bool = False) -> ManagerBasedRlEnvCfg:
     return cfg
 
 
-def unitree_a1_flat_env_cfg(play: bool = False) -> ManagerBasedRlEnvCfg:
-    cfg = unitree_a1_rough_env_cfg(play=play); assert cfg.scene.terrain is not None
+def zsibot_zsl1_flat_env_cfg(play: bool = False) -> ManagerBasedRlEnvCfg:
+    cfg = zsibot_zsl1_rough_env_cfg(play=play); assert cfg.scene.terrain is not None
     cfg.scene.terrain.terrain_type = "plane"; cfg.scene.terrain.terrain_generator = None
     cfg.scene.sensors = tuple(s for s in (cfg.scene.sensors or ()) if s.name != "terrain_scan")
     cfg.observations["critic"].terms.pop("height_scan", None)

@@ -1,7 +1,6 @@
 # Copyright (c) 2024-2026 Ziqi Fan
 # SPDX-License-Identifier: Apache-2.0
 
-import os
 from pathlib import Path
 
 from isaaclab.utils import configclass
@@ -42,9 +41,7 @@ class UnitreeG1AMPFlatPPORunnerCfg(RslRlOnPolicyRunnerCfg):
         super().__post_init__()
 
         # AMP-specific configuration
-        # Motion data directory (BeyondMimic format NPZ files)
-        motion_dir = str(Path(__file__).parent.parent.parent.parent.parent.parent.parent.parent /
-                        "data" / "beyondmimic" / "g1")
+        motion_dir = str(Path.home() / "GMR-private" / "retarget_data" / "unitree_g1" / "motions")
 
         # Key body names for AMP discriminator observations
         # Must match command.body_names for dimension consistency

@@ -91,14 +91,14 @@ def unitree_g1_rough_env_cfg(play: bool = False) -> ManagerBasedRlEnvCfg:
     joint_pos_action.scale = G1_ACTION_SCALE
     joint_pos_action.clip = {".*": (-100.0, 100.0)}
 
-    cfg.viewer.body_name = "torso_link"
+    cfg.viewer.body_name = "pelvis"
 
     twist_cmd = cfg.commands["twist"]
     assert isinstance(twist_cmd, UniformVelocityCommandCfg)
     twist_cmd.viz.z_offset = 1.15
 
     cfg.events["foot_friction"].params["asset_cfg"].geom_names = geom_names
-    cfg.events["base_com"].params["asset_cfg"].body_names = ("torso_link",)
+    cfg.events["base_com"].params["asset_cfg"].body_names = ("pelvis",)
 
     # Rationale for std values:
     # - Knees/hip_pitch get the loosest std to allow natural leg bending during stride.
@@ -148,8 +148,8 @@ def unitree_g1_rough_env_cfg(play: bool = False) -> ManagerBasedRlEnvCfg:
         r".*wrist.*": 0.3,
     }
 
-    cfg.rewards["upright"].params["asset_cfg"].body_names = ("torso_link",)
-    cfg.rewards["body_ang_vel"].params["asset_cfg"].body_names = ("torso_link",)
+    cfg.rewards["upright"].params["asset_cfg"].body_names = ("pelvis",)
+    cfg.rewards["body_ang_vel"].params["asset_cfg"].body_names = ("pelvis",)
 
     for reward_name in ["foot_clearance", "foot_slip"]:
         cfg.rewards[reward_name].params["asset_cfg"].site_names = site_names
@@ -229,7 +229,7 @@ def unitree_g1_flat_env_cfg(play: bool = False) -> ManagerBasedRlEnvCfg:
     """Create Unitree G1 flat terrain velocity configuration."""
     cfg = unitree_g1_rough_env_cfg(play=play)
 
-    cfg.sim.njmax = 300
+    cfg.sim.njmax = 500
     cfg.sim.mujoco.ccd_iterations = 50
     cfg.sim.contact_sensor_maxmatch = 64
     cfg.sim.nconmax = None

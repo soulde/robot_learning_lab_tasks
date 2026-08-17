@@ -85,7 +85,7 @@ def dr02_rough_env_cfg(play: bool = False) -> ManagerBasedRlEnvCfg:
         name="nonfoot_ground_contact",
         primary=ContactMatch(
             mode="geom",
-            pattern=".*_collision",
+            pattern=".*_collision.*",
             entity="robot",
             exclude=foot_geom_names,
         ),

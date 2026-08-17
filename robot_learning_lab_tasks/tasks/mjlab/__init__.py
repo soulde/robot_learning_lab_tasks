@@ -1,3 +1,3 @@
 """MJLab task implementations and registrations."""
 
-from . import velocity  # noqa: F401
+from . import amp, velocity  # noqa: F401
