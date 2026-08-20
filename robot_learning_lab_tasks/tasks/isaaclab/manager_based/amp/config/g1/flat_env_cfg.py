@@ -6,6 +6,8 @@ from robot_learning_lab_zoo.assets.isaaclab.unitree import (
     UNITREE_G1_29DOF_ACTION_SCALE,
     UNITREE_G1_29DOF_CFG,
     UNITREE_G1_29DOF_DEX3_ACTION_SCALE,
+    UNITREE_G1_29DOF_DEX3_BACKPACK_ACTION_SCALE,
+    UNITREE_G1_29DOF_DEX3_BACKPACK_CFG,
     UNITREE_G1_29DOF_DEX3_CFG,
 )
 
@@ -81,3 +83,13 @@ class UnitreeG1Dex3AMPFlatEnvCfg(UnitreeG1AMPFlatEnvCfg):
         super().__post_init__()
         self.scene.robot = UNITREE_G1_29DOF_DEX3_CFG.replace(prim_path="{ENV_REGEX_NS}/Robot")
         self.actions.joint_pos.scale = UNITREE_G1_29DOF_DEX3_ACTION_SCALE
+
+
+@configclass
+class UnitreeG1Dex3BackpackAMPFlatEnvCfg(UnitreeG1Dex3AMPFlatEnvCfg):
+    """G1 Dex3 AMP environment with a fixed 1 kg backpack."""
+
+    def __post_init__(self):
+        super().__post_init__()
+        self.scene.robot = UNITREE_G1_29DOF_DEX3_BACKPACK_CFG.replace(prim_path="{ENV_REGEX_NS}/Robot")
+        self.actions.joint_pos.scale = UNITREE_G1_29DOF_DEX3_BACKPACK_ACTION_SCALE

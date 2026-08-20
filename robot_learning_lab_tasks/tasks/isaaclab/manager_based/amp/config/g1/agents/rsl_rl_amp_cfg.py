@@ -4,7 +4,6 @@
 from pathlib import Path
 
 from isaaclab.utils import configclass
-
 from isaaclab_rl.rsl_rl import RslRlOnPolicyRunnerCfg, RslRlPpoActorCriticCfg, RslRlPpoAlgorithmCfg
 
 
@@ -72,3 +71,10 @@ class UnitreeG1AMPFlatPPORunnerCfg(RslRlOnPolicyRunnerCfg):
         self.algorithm.discriminator_learning_rate = 5e-4
         self.algorithm.discriminator_batch_size = 4096
         self.algorithm.discriminator_updates = 4
+
+
+@configclass
+class UnitreeG1Dex3BackpackAMPFlatPPORunnerCfg(UnitreeG1AMPFlatPPORunnerCfg):
+    def __post_init__(self):
+        super().__post_init__()
+        self.experiment_name = "unitree_g1_dex3_backpack_amp_flat"

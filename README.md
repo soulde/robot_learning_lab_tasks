@@ -13,6 +13,15 @@ task ID:
 - `RobotLab-MJLab-Velocity-Flat-Unitree-G1-Dex3`
 - `RobotLab-MJLab-AMP-Flat-Unitree-G1-Dex3`
 
+The fixed 1 kg backpack copy has matching, separately registered task IDs:
+
+- `RobotLab-Isaac-Velocity-Rough-Unitree-G1-Dex3-Backpack-v0`
+- `RobotLab-Isaac-Velocity-Flat-Unitree-G1-Dex3-Backpack-v0`
+- `RobotLab-Isaac-AMP-Flat-Unitree-G1-Dex3-Backpack-v0`
+- `RobotLab-MJLab-Velocity-Rough-Unitree-G1-Dex3-Backpack`
+- `RobotLab-MJLab-Velocity-Flat-Unitree-G1-Dex3-Backpack`
+- `RobotLab-MJLab-AMP-Flat-Unitree-G1-Dex3-Backpack`
+
 Dex3 policies control all 43 joints. AMP reference observations stay on the
 original 29 body joints because the current motion files contain no hand
 trajectories.

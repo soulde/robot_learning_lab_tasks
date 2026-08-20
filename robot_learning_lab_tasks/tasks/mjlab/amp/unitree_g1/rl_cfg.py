@@ -18,3 +18,10 @@ def unitree_g1_amp_runner_cfg() -> AMPRunnerCfg:
     cfg.discriminator.reward_scale = 1.0
     cfg.discriminator.task_reward_lerp = 0.0
     return cfg
+
+
+def unitree_g1_dex3_backpack_amp_runner_cfg() -> AMPRunnerCfg:
+    """Create an AMP runner configuration with an isolated backpack log namespace."""
+    cfg = unitree_g1_amp_runner_cfg()
+    cfg.experiment_name = "g1_dex3_backpack_amp_flat"
+    return cfg

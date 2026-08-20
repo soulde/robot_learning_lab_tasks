@@ -78,6 +78,9 @@ print(json.dumps(task_ids))
             "RobotLab-MJLab-AMP-Flat-Unitree-G1-Dex3",
             "RobotLab-MJLab-Velocity-Flat-Unitree-G1-Dex3",
             "RobotLab-MJLab-Velocity-Rough-Unitree-G1-Dex3",
+            "RobotLab-MJLab-AMP-Flat-Unitree-G1-Dex3-Backpack",
+            "RobotLab-MJLab-Velocity-Flat-Unitree-G1-Dex3-Backpack",
+            "RobotLab-MJLab-Velocity-Rough-Unitree-G1-Dex3-Backpack",
         }
     )
     expected.update(

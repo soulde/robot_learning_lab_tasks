@@ -10,6 +10,7 @@ from mjlab.managers.scene_entity_config import SceneEntityCfg
 from robot_learning_lab_zoo import ROBOTS_DIR
 
 from robot_learning_lab_tasks.tasks.mjlab.velocity.unitree_g1.env_cfgs import (
+    unitree_g1_dex3_backpack_flat_env_cfg,
     unitree_g1_dex3_flat_env_cfg,
     unitree_g1_flat_env_cfg,
 )
@@ -133,5 +134,18 @@ def unitree_g1_dex3_amp_flat_env_cfg(play: bool = False) -> ManagerBasedRlEnvCfg
         amp_anchor_base="pelvis",
         amp_anchor_links=G1_AMP_LINK_NAMES,
         urdf_path=str(ROBOTS_DIR / "unitree/g1_description/urdf/g1_29dof_with_hand_rev_1_0.urdf"),
+    )
+    return cfg
+
+
+def unitree_g1_dex3_backpack_amp_flat_env_cfg(play: bool = False) -> ManagerBasedRlEnvCfg:
+    cfg = unitree_g1_dex3_backpack_flat_env_cfg(play=play)
+    cfg.observations["amp"] = _amp_observations()
+    cfg.episode_length_s = 20.0 if not play else int(1e9)
+    cfg.amp = G1AmpCfg(
+        dt=cfg.sim.mujoco.timestep * cfg.decimation,
+        amp_motion_files=_motion_files(), amp_motion_weights=None,
+        joint_names=G1_JOINT_NAMES, amp_anchor_base="pelvis", amp_anchor_links=G1_AMP_LINK_NAMES,
+        urdf_path=str(ROBOTS_DIR / "unitree/g1_description/urdf/g1_29dof_with_hand_backpack_1kg.urdf"),
     )
     return cfg

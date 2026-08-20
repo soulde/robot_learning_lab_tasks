@@ -46,3 +46,13 @@ class UnitreeG1RoughTrainerCfg(TrainerCfg):
 class UnitreeG1FlatTrainerCfg(UnitreeG1RoughTrainerCfg):
     max_iterations = 1500
     experiment_name = "unitree_g1_flat"
+
+
+@dataclass
+class UnitreeG1Dex3BackpackRoughTrainerCfg(UnitreeG1RoughTrainerCfg):
+    experiment_name = "unitree_g1_dex3_backpack_rough"
+
+
+@dataclass
+class UnitreeG1Dex3BackpackFlatTrainerCfg(UnitreeG1FlatTrainerCfg):
+    experiment_name = "unitree_g1_dex3_backpack_flat"

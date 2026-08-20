@@ -25,6 +25,7 @@ from robot_learning_lab_zoo.assets.mjlab.unitree import (
     G1_FOOT_GEOM_NAMES,
     G1_FOOT_SITE_NAMES,
     UNITREE_G1_29DOF_CFG,
+    UNITREE_G1_29DOF_DEX3_BACKPACK_CFG,
     UNITREE_G1_29DOF_DEX3_CFG,
 )
 
@@ -272,4 +273,16 @@ def unitree_g1_dex3_flat_env_cfg(play: bool = False) -> ManagerBasedRlEnvCfg:
     cfg = unitree_g1_flat_env_cfg(play=play)
     cfg.scene.entities["robot"] = deepcopy(UNITREE_G1_29DOF_DEX3_CFG)
     cfg.actions["joint_pos"].scale = G1_DEX3_ACTION_SCALE
+    return cfg
+
+
+def unitree_g1_dex3_backpack_rough_env_cfg(play: bool = False) -> ManagerBasedRlEnvCfg:
+    cfg = unitree_g1_dex3_rough_env_cfg(play=play)
+    cfg.scene.entities["robot"] = deepcopy(UNITREE_G1_29DOF_DEX3_BACKPACK_CFG)
+    return cfg
+
+
+def unitree_g1_dex3_backpack_flat_env_cfg(play: bool = False) -> ManagerBasedRlEnvCfg:
+    cfg = unitree_g1_dex3_flat_env_cfg(play=play)
+    cfg.scene.entities["robot"] = deepcopy(UNITREE_G1_29DOF_DEX3_BACKPACK_CFG)
     return cfg

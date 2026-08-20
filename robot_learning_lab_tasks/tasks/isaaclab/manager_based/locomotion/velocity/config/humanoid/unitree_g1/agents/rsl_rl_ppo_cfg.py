@@ -2,7 +2,6 @@
 # SPDX-License-Identifier: Apache-2.0
 
 from isaaclab.utils import configclass
-
 from isaaclab_rl.rsl_rl import RslRlOnPolicyRunnerCfg, RslRlPpoActorCriticCfg, RslRlPpoAlgorithmCfg
 
 
@@ -43,3 +42,15 @@ class UnitreeG1FlatPPORunnerCfg(UnitreeG1RoughPPORunnerCfg):
 
         self.max_iterations = 1500
         self.experiment_name = "unitree_g1_flat"
+
+
+@configclass
+class UnitreeG1Dex3BackpackRoughPPORunnerCfg(UnitreeG1RoughPPORunnerCfg):
+    experiment_name = "unitree_g1_dex3_backpack_rough"
+
+
+@configclass
+class UnitreeG1Dex3BackpackFlatPPORunnerCfg(UnitreeG1FlatPPORunnerCfg):
+    def __post_init__(self):
+        super().__post_init__()
+        self.experiment_name = "unitree_g1_dex3_backpack_flat"

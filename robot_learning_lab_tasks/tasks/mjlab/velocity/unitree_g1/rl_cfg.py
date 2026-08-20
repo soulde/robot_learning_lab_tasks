@@ -44,3 +44,10 @@ def unitree_g1_ppo_runner_cfg() -> RslRlOnPolicyRunnerCfg:
         num_steps_per_env=24,
         max_iterations=30_000,
     )
+
+
+def unitree_g1_dex3_backpack_ppo_runner_cfg() -> RslRlOnPolicyRunnerCfg:
+    """Create a runner configuration with an isolated backpack log namespace."""
+    cfg = unitree_g1_ppo_runner_cfg()
+    cfg.experiment_name = "g1_dex3_backpack_velocity"
+    return cfg
