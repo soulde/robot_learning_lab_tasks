@@ -11,8 +11,8 @@ robot_learning_lab_tasks/tasks/
 Install only the backend you need:
 
 ```bash
-pip install -e ".[isaaclab]"
-pip install -e ".[mjlab]"
+uv pip install -e ".[isaaclab]"
+uv pip install -e ".[mjlab]"
 ```
 
 Importing `robot_learning_lab_tasks` does not import either simulator. Import a backend to register its environments:

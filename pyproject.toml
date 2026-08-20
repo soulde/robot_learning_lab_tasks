@@ -1,0 +1,50 @@
+[build-system]
+requires = ["setuptools>=80", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "robot_learning_lab_tasks"
+version = "0.1.0"
+description = "Isaac Lab and MJLab tasks for robot learning"
+readme = "README.md"
+requires-python = ">=3.10"
+authors = [
+    {name = "Soulde Developers"},
+]
+maintainers = [
+    {name = "Soulde Developers"},
+]
+keywords = ["robotics", "reinforcement-learning", "isaaclab", "mjlab"]
+dependencies = ["numpy>=1.23"]
+
+[project.urls]
+Repository = "https://github.com/soulde/robot_learning_lab_tasks"
+
+[project.optional-dependencies]
+isaaclab = [
+    "isaaclab",
+    "isaaclab_tasks",
+    "robot_learning_lab_datasets",
+    "robot_learning_lab_zoo[isaaclab]",
+]
+mjlab = [
+    "mjlab",
+    "robot_learning_lab_zoo[mjlab]",
+    "rll_rl[amp]",
+]
+
+[project.entry-points."mjlab.tasks"]
+robot_learning_lab_tasks = "robot_learning_lab_tasks.tasks.mjlab"
+
+[tool.setuptools]
+include-package-data = true
+
+[tool.setuptools.packages.find]
+include = ["robot_learning_lab_tasks*"]
+
+[tool.setuptools.package-data]
+robot_learning_lab_tasks = ["**/*.yaml", "**/*.yml", "**/*.json", "**/*.csv", "**/*.npz"]
+
+[tool.ruff]
+line-length = 120
+target-version = "py310"
