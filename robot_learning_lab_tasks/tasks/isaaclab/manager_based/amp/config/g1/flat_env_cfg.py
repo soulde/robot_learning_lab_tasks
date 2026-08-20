@@ -1,14 +1,13 @@
 # Copyright (c) 2024-2026 Ziqi Fan
 # SPDX-License-Identifier: Apache-2.0
 
+from isaaclab.utils import configclass
 from robot_learning_lab_zoo.assets.isaaclab.unitree import (
     UNITREE_G1_29DOF_ACTION_SCALE,
     UNITREE_G1_29DOF_CFG,
     UNITREE_G1_29DOF_DEX3_ACTION_SCALE,
     UNITREE_G1_29DOF_DEX3_CFG,
 )
-
-from isaaclab.utils import configclass
 
 from robot_learning_lab_tasks.tasks.isaaclab.manager_based.amp.tracking_env_cfg import AMPEnvCfg
 

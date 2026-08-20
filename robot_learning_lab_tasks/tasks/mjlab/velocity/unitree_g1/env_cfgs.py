@@ -217,12 +217,11 @@ def unitree_g1_rough_env_cfg(play: bool = False) -> ManagerBasedRlEnvCfg:
             params={},
         )
 
-        if cfg.scene.terrain is not None:
-            if cfg.scene.terrain.terrain_generator is not None:
-                cfg.scene.terrain.terrain_generator.curriculum = False
-                cfg.scene.terrain.terrain_generator.num_cols = 5
-                cfg.scene.terrain.terrain_generator.num_rows = 5
-                cfg.scene.terrain.terrain_generator.border_width = 10.0
+        if cfg.scene.terrain is not None and cfg.scene.terrain.terrain_generator is not None:
+            cfg.scene.terrain.terrain_generator.curriculum = False
+            cfg.scene.terrain.terrain_generator.num_cols = 5
+            cfg.scene.terrain.terrain_generator.num_rows = 5
+            cfg.scene.terrain.terrain_generator.border_width = 10.0
 
     return cfg
 

@@ -1,7 +1,8 @@
 def test_mjlab_registers_dex3_tasks_without_replacing_g1_tasks() -> None:
-    import robot_learning_lab_tasks.tasks.mjlab  # noqa: F401
     from mjlab.tasks.registry import list_tasks, load_env_cfg
     from robot_learning_lab_zoo.assets.mjlab.unitree import UNITREE_G1_29DOF_CFG, UNITREE_G1_29DOF_DEX3_CFG
+
+    import robot_learning_lab_tasks.tasks.mjlab  # noqa: F401
 
     expected = {
         "RobotLab-MJLab-Velocity-Rough-Unitree-G1-Dex3",

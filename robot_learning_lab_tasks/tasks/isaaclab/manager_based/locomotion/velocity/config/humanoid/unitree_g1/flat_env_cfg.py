@@ -2,7 +2,6 @@
 # SPDX-License-Identifier: Apache-2.0
 
 from isaaclab.utils import configclass
-
 from robot_learning_lab_zoo.assets.isaaclab.unitree import (
     UNITREE_G1_29DOF_DEX3_ACTION_SCALE,
     UNITREE_G1_29DOF_DEX3_CFG,
