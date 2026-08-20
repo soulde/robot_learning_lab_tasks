@@ -21,9 +21,11 @@ from mjlab.tasks.velocity.mdp import UniformVelocityCommandCfg
 from mjlab.tasks.velocity.velocity_env_cfg import make_velocity_env_cfg
 from robot_learning_lab_zoo.assets.mjlab.unitree import (
     G1_ACTION_SCALE,
+    G1_DEX3_ACTION_SCALE,
     G1_FOOT_GEOM_NAMES,
     G1_FOOT_SITE_NAMES,
     UNITREE_G1_29DOF_CFG,
+    UNITREE_G1_29DOF_DEX3_CFG,
 )
 
 from robot_learning_lab_tasks.tasks.mjlab.velocity import rewards as lab_rewards
@@ -255,4 +257,20 @@ def unitree_g1_flat_env_cfg(play: bool = False) -> ManagerBasedRlEnvCfg:
         twist_cmd.ranges.lin_vel_x = (-1.5, 2.0)
         twist_cmd.ranges.ang_vel_z = (-0.7, 0.7)
 
+    return cfg
+
+
+def unitree_g1_dex3_rough_env_cfg(play: bool = False) -> ManagerBasedRlEnvCfg:
+    """Create the G1 Dex3 rough-terrain velocity configuration."""
+    cfg = unitree_g1_rough_env_cfg(play=play)
+    cfg.scene.entities["robot"] = deepcopy(UNITREE_G1_29DOF_DEX3_CFG)
+    cfg.actions["joint_pos"].scale = G1_DEX3_ACTION_SCALE
+    return cfg
+
+
+def unitree_g1_dex3_flat_env_cfg(play: bool = False) -> ManagerBasedRlEnvCfg:
+    """Create the G1 Dex3 flat-terrain velocity configuration."""
+    cfg = unitree_g1_flat_env_cfg(play=play)
+    cfg.scene.entities["robot"] = deepcopy(UNITREE_G1_29DOF_DEX3_CFG)
+    cfg.actions["joint_pos"].scale = G1_DEX3_ACTION_SCALE
     return cfg

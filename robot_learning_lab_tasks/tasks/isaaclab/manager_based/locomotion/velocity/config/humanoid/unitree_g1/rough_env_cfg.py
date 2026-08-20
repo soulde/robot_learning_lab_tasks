@@ -9,7 +9,12 @@ from robot_learning_lab_tasks.tasks.isaaclab.manager_based.locomotion.velocity.v
 ##
 # Pre-defined configs
 ##
-from robot_learning_lab_zoo.assets.isaaclab.unitree import UNITREE_G1_29DOF_ACTION_SCALE, UNITREE_G1_29DOF_CFG  # isort: skip
+from robot_learning_lab_zoo.assets.isaaclab.unitree import (  # isort: skip
+    UNITREE_G1_29DOF_ACTION_SCALE,
+    UNITREE_G1_29DOF_CFG,
+    UNITREE_G1_29DOF_DEX3_ACTION_SCALE,
+    UNITREE_G1_29DOF_DEX3_CFG,
+)
 
 
 @configclass
@@ -165,3 +170,13 @@ class UnitreeG1RoughEnvCfg(LocomotionVelocityRoughEnvCfg):
         self.commands.base_velocity.ranges.lin_vel_x = (-1.0, 1.0)
         self.commands.base_velocity.ranges.lin_vel_y = (-1.0, 1.0)
         self.commands.base_velocity.ranges.ang_vel_z = (-1.0, 1.0)
+
+
+@configclass
+class UnitreeG1Dex3RoughEnvCfg(UnitreeG1RoughEnvCfg):
+    """G1 rough-terrain configuration with two actuated Dex3 hands."""
+
+    def __post_init__(self):
+        super().__post_init__()
+        self.scene.robot = UNITREE_G1_29DOF_DEX3_CFG.replace(prim_path="{ENV_REGEX_NS}/Robot")
+        self.actions.joint_pos.scale = UNITREE_G1_29DOF_DEX3_ACTION_SCALE

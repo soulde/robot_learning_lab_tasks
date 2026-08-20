@@ -74,6 +74,13 @@ print(json.dumps(task_ids))
 
     expected = {"RobotLab-MJLab-AMP-Flat-Unitree-G1", "RobotLab-MJLab-Velocity-Rough-Deeprobotics-DR02-Pro"}
     expected.update(
+        {
+            "RobotLab-MJLab-AMP-Flat-Unitree-G1-Dex3",
+            "RobotLab-MJLab-Velocity-Flat-Unitree-G1-Dex3",
+            "RobotLab-MJLab-Velocity-Rough-Unitree-G1-Dex3",
+        }
+    )
+    expected.update(
         f"RobotLab-MJLab-Velocity-{terrain}-{robot}" for terrain in ("Flat", "Rough") for robot in TWO_TERRAIN_ROBOTS
     )
     assert actual == expected

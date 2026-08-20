@@ -1,7 +1,12 @@
 # Copyright (c) 2024-2026 Ziqi Fan
 # SPDX-License-Identifier: Apache-2.0
 
-from robot_learning_lab_zoo.assets.isaaclab.unitree import UNITREE_G1_29DOF_ACTION_SCALE, UNITREE_G1_29DOF_CFG
+from robot_learning_lab_zoo.assets.isaaclab.unitree import (
+    UNITREE_G1_29DOF_ACTION_SCALE,
+    UNITREE_G1_29DOF_CFG,
+    UNITREE_G1_29DOF_DEX3_ACTION_SCALE,
+    UNITREE_G1_29DOF_DEX3_CFG,
+)
 
 from isaaclab.utils import configclass
 
@@ -67,3 +72,13 @@ class UnitreeG1AMPFlatEnvCfg(AMPEnvCfg):
         self.observations.amp.link_positions.params["asset_cfg"].body_names = G1_AMP_LINK_NAMES
 
         self.episode_length_s = 30.0
+
+
+@configclass
+class UnitreeG1Dex3AMPFlatEnvCfg(UnitreeG1AMPFlatEnvCfg):
+    """G1 Dex3 AMP environment with body-only reference observations."""
+
+    def __post_init__(self):
+        super().__post_init__()
+        self.scene.robot = UNITREE_G1_29DOF_DEX3_CFG.replace(prim_path="{ENV_REGEX_NS}/Robot")
+        self.actions.joint_pos.scale = UNITREE_G1_29DOF_DEX3_ACTION_SCALE
