@@ -21,9 +21,6 @@ class DeeproboticsDR02ProRoughEnvCfg(DeeproboticsDR02StandardRoughEnvCfg):
         self.rewards.create_joint_deviation_l1_rewterm(
             "joint_deviation_torso_l1", -0.1, ["waist_z_joint", "waist_x_joint", "waist_y_joint"]
         )
-        self.rewards.create_joint_deviation_l1_rewterm(
-            "joint_deviation_head_l1", -0.1, ["neck_z_joint", "neck_y_joint"]
-        )
 
         # If the weight of rewards is 0, set rewards to None
         if self.__class__.__name__ == "DeeproboticsDR02ProRoughEnvCfg":

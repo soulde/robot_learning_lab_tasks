@@ -16,7 +16,6 @@ gym.register(
     kwargs={
         "env_cfg_entry_point": f"{__name__}.flat_env_cfg:MagicDogWFlatEnvCfg",
         "rsl_rl_cfg_entry_point": f"{agents.__name__}.rsl_rl_ppo_cfg:MagicDogWFlatPPORunnerCfg",
-        "cusrl_cfg_entry_point": f"{agents.__name__}.cusrl_ppo_cfg:MagicDogWFlatTrainerCfg",
     },
 )
 
@@ -27,6 +26,5 @@ gym.register(
     kwargs={
         "env_cfg_entry_point": f"{__name__}.rough_env_cfg:MagicDogWRoughEnvCfg",
         "rsl_rl_cfg_entry_point": f"{agents.__name__}.rsl_rl_ppo_cfg:MagicDogWRoughPPORunnerCfg",
-        "cusrl_cfg_entry_point": f"{agents.__name__}.cusrl_ppo_cfg:MagicDogWRoughTrainerCfg",
     },
 )
