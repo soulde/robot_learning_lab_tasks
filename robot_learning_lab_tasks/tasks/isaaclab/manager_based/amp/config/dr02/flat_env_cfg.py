@@ -57,3 +57,14 @@ class DeeproboticsDR02ProAMPFlatEnvCfg(AMPEnvCfg):
         self.observations.amp.joint_velocity.params["asset_cfg"].joint_names = list(DR02_JOINT_NAMES)
         self.observations.amp.link_positions.params["asset_cfg"].body_names = list(DR02_AMP_KEY_BODY_NAMES)
         self.episode_length_s = 20.0
+        self.rewards.track_lin_vel_xy_exp.weight = 2.0
+        self.rewards.track_ang_vel_z_exp.weight = 1.0
+        self.rewards.is_terminated.weight = -200.0
+        self.rewards.ang_vel_xy_l2.weight = -0.1
+        self.rewards.flat_orientation_l2.weight = -0.2
+        self.rewards.joint_acc_l2.weight = -1.25e-7
+        self.rewards.joint_torques_l2.weight = -1.5e-7
+        self.rewards.action_rate_l2.weight = -0.005
+        self.rewards.joint_pos_limits.weight = -0.5
+        self.rewards.undesired_contacts.weight = -1.0
+        self.rewards.undesired_contacts.params["sensor_cfg"].body_names = ["^(?!.*_ankle_x_link$).*"]

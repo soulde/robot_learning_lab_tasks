@@ -1,11 +1,13 @@
 """Base Isaac Lab environment configuration for adversarial motion priors."""
 
+import math
 from dataclasses import MISSING
 
 import isaaclab.sim as sim_utils
 from isaaclab.assets import ArticulationCfg, AssetBaseCfg
 from isaaclab.envs import ManagerBasedRLEnvCfg
 from isaaclab.managers import EventTermCfg as EventTerm
+from isaaclab.managers import CurriculumTermCfg as CurrTerm
 from isaaclab.managers import ObservationGroupCfg as ObsGroup
 from isaaclab.managers import ObservationTermCfg as ObsTerm
 from isaaclab.managers import RewardTermCfg as RewTerm
@@ -18,6 +20,7 @@ from isaaclab.utils import configclass
 from isaaclab.utils.noise import AdditiveUniformNoiseCfg as Unoise
 
 import robot_learning_lab_tasks.tasks.isaaclab.manager_based.amp.mdp as mdp
+import robot_learning_lab_tasks.tasks.isaaclab.manager_based.locomotion.velocity.mdp as velocity_mdp
 
 
 @configclass
@@ -62,6 +65,25 @@ class ActionsCfg:
 
 
 @configclass
+class CommandsCfg:
+    base_velocity = velocity_mdp.UniformThresholdVelocityCommandCfg(
+        asset_name="robot",
+        resampling_time_range=(10.0, 10.0),
+        rel_standing_envs=0.02,
+        rel_heading_envs=1.0,
+        heading_command=True,
+        heading_control_stiffness=0.5,
+        debug_vis=False,
+        ranges=velocity_mdp.UniformThresholdVelocityCommandCfg.Ranges(
+            lin_vel_x=(-1.0, 1.0),
+            lin_vel_y=(-1.0, 1.0),
+            ang_vel_z=(-1.0, 1.0),
+            heading=(-math.pi, math.pi),
+        ),
+    )
+
+
+@configclass
 class ObservationsCfg:
     @configclass
     class PolicyCfg(ObsGroup):
@@ -70,6 +92,10 @@ class ObservationsCfg:
         joint_pos = ObsTerm(func=mdp.joint_pos_rel, noise=Unoise(n_min=-0.01, n_max=0.01))
         joint_vel = ObsTerm(func=mdp.joint_vel_rel, noise=Unoise(n_min=-0.5, n_max=0.5))
         actions = ObsTerm(func=mdp.last_action)
+        velocity_commands = ObsTerm(
+            func=mdp.generated_commands,
+            params={"command_name": "base_velocity"},
+        )
 
         def __post_init__(self):
             self.enable_corruption = True
@@ -83,6 +109,10 @@ class ObservationsCfg:
         joint_pos = ObsTerm(func=mdp.joint_pos_rel)
         joint_vel = ObsTerm(func=mdp.joint_vel_rel)
         actions = ObsTerm(func=mdp.last_action)
+        velocity_commands = ObsTerm(
+            func=mdp.generated_commands,
+            params={"command_name": "base_velocity"},
+        )
 
     @configclass
     class AMPCfg(ObsGroup):
@@ -165,6 +195,9 @@ class EventCfg:
 
 @configclass
 class RewardsCfg:
+    is_terminated = RewTerm(func=mdp.is_terminated, weight=0.0)
+    ang_vel_xy_l2 = RewTerm(func=mdp.ang_vel_xy_l2, weight=0.0)
+    flat_orientation_l2 = RewTerm(func=mdp.flat_orientation_l2, weight=0.0)
     joint_acc_l2 = RewTerm(func=mdp.joint_acc_l2, weight=-2.5e-7)
     joint_torques_l2 = RewTerm(func=mdp.joint_torques_l2, weight=-1e-5)
     action_rate_l2 = RewTerm(func=mdp.action_rate_l2, weight=-0.1)
@@ -184,6 +217,16 @@ class RewardsCfg:
             "threshold": 1.0,
         },
     )
+    track_lin_vel_xy_exp = RewTerm(
+        func=mdp.track_lin_vel_xy_exp,
+        weight=0.0,
+        params={"command_name": "base_velocity", "std": math.sqrt(0.25)},
+    )
+    track_ang_vel_z_exp = RewTerm(
+        func=mdp.track_ang_vel_z_exp,
+        weight=0.0,
+        params={"command_name": "base_velocity", "std": math.sqrt(0.25)},
+    )
 
 
 @configclass
@@ -196,13 +239,33 @@ class TerminationsCfg:
 
 
 @configclass
+class CurriculumCfg:
+    command_levels_lin_vel = CurrTerm(
+        func=velocity_mdp.command_levels_lin_vel,
+        params={
+            "reward_term_name": "track_lin_vel_xy_exp",
+            "range_multiplier": (0.1, 1.0),
+        },
+    )
+    command_levels_ang_vel = CurrTerm(
+        func=velocity_mdp.command_levels_ang_vel,
+        params={
+            "reward_term_name": "track_ang_vel_z_exp",
+            "range_multiplier": (0.1, 1.0),
+        },
+    )
+
+
+@configclass
 class AMPEnvCfg(ManagerBasedRLEnvCfg):
     scene: AMPSceneCfg = AMPSceneCfg(num_envs=4096, env_spacing=2.5)
     observations: ObservationsCfg = ObservationsCfg()
     actions: ActionsCfg = ActionsCfg()
+    commands: CommandsCfg = CommandsCfg()
     rewards: RewardsCfg = RewardsCfg()
     terminations: TerminationsCfg = TerminationsCfg()
     events: EventCfg = EventCfg()
+    curriculum: CurriculumCfg = CurriculumCfg()
 
     def __post_init__(self):
         self.decimation = 4
