@@ -1,6 +1,5 @@
 """Unitree G1 AMP environment configuration for MJLab."""
 
-import os
 from dataclasses import dataclass
 from pathlib import Path
 
@@ -69,7 +68,6 @@ G1_AMP_LINK_NAMES = (
 @dataclass(frozen=True)
 class G1AmpCfg:
     dt: float
-    amp_motion_files: tuple[str, ...]
     amp_motion_weights: dict[str, float] | None
     joint_names: tuple[str, ...]
     amp_anchor_base: str
@@ -77,14 +75,6 @@ class G1AmpCfg:
     urdf_path: str
     preload_transitions: bool = False
     amp_num_preload_transitions: int = 100_000
-
-
-def _motion_files() -> tuple[str, ...]:
-    gmr_root = Path(os.environ.get("GMR_PRIVATE_DIR", Path.home() / "GMR-private"))
-    files = tuple(sorted(str(path) for path in (gmr_root / "retarget_data/unitree_g1/motions").glob("dance*.pkl")))
-    if not files:
-        raise FileNotFoundError(f"No Unitree G1 GMR motions found below {gmr_root}")
-    return files
 
 
 def _amp_observations() -> ObservationGroupCfg:
@@ -111,7 +101,6 @@ def unitree_g1_amp_flat_env_cfg(play: bool = False) -> ManagerBasedRlEnvCfg:
     cfg.episode_length_s = 20.0 if not play else int(1e9)
     cfg.amp = G1AmpCfg(
         dt=cfg.sim.mujoco.timestep * cfg.decimation,
-        amp_motion_files=_motion_files(),
         amp_motion_weights=None,
         joint_names=G1_JOINT_NAMES,
         amp_anchor_base="pelvis",
@@ -128,7 +117,6 @@ def unitree_g1_dex3_amp_flat_env_cfg(play: bool = False) -> ManagerBasedRlEnvCfg
     cfg.episode_length_s = 20.0 if not play else int(1e9)
     cfg.amp = G1AmpCfg(
         dt=cfg.sim.mujoco.timestep * cfg.decimation,
-        amp_motion_files=_motion_files(),
         amp_motion_weights=None,
         joint_names=G1_JOINT_NAMES,
         amp_anchor_base="pelvis",
@@ -144,7 +132,7 @@ def unitree_g1_dex3_backpack_amp_flat_env_cfg(play: bool = False) -> ManagerBase
     cfg.episode_length_s = 20.0 if not play else int(1e9)
     cfg.amp = G1AmpCfg(
         dt=cfg.sim.mujoco.timestep * cfg.decimation,
-        amp_motion_files=_motion_files(), amp_motion_weights=None,
+        amp_motion_weights=None,
         joint_names=G1_JOINT_NAMES, amp_anchor_base="pelvis", amp_anchor_links=G1_AMP_LINK_NAMES,
         urdf_path=str(ROBOTS_DIR / "unitree/g1_description/urdf/g1_29dof_with_hand_backpack_1kg.urdf"),
     )

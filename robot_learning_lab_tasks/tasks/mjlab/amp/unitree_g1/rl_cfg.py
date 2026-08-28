@@ -1,6 +1,12 @@
 """Training configuration for Unitree G1 AMP."""
 
+from pathlib import Path
+
 from rll_rl import AMPRunnerCfg
+
+_G1_MOTION_GLOB = (
+    str(Path.home() / "GMR-private/retarget_data/unitree_g1/motions/dance*.pkl"),
+)
 
 
 def unitree_g1_amp_runner_cfg() -> AMPRunnerCfg:
@@ -10,13 +16,12 @@ def unitree_g1_amp_runner_cfg() -> AMPRunnerCfg:
         "critic": ("critic",),
         "amp": ("amp",),
     }
+    cfg.amp.motion_files = _G1_MOTION_GLOB
     cfg.actor_critic.actor_hidden_dims = (512, 256, 128)
     cfg.actor_critic.critic_hidden_dims = (512, 256, 128)
     cfg.algorithm.learning_rate = 5.0e-4
     cfg.algorithm.num_mini_batches = 4
     cfg.discriminator.hidden_dims = (1024, 512)
-    cfg.discriminator.reward_scale = 1.0
-    cfg.discriminator.task_reward_lerp = 0.0
     return cfg
 
 

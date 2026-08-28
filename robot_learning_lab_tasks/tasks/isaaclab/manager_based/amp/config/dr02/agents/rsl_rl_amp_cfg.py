@@ -6,7 +6,9 @@ from pathlib import Path
 from isaaclab.utils import configclass
 from isaaclab_rl.rsl_rl import RslRlOnPolicyRunnerCfg, RslRlPpoActorCriticCfg, RslRlPpoAlgorithmCfg
 
-from ..flat_env_cfg import DR02_AMP_KEY_BODY_NAMES, DR02_JOINT_NAMES, dr02_amp_body_names_path, dr02_amp_motion_dir
+from ..flat_env_cfg import DR02_AMP_KEY_BODY_NAMES, DR02_JOINT_NAMES
+
+_ROBOT_DATA_ROOT = Path.home() / "GMR-private" / "retarget_data" / "dr02"
 
 
 @configclass
@@ -45,10 +47,10 @@ class DeeproboticsDR02ProAMPFlatPPORunnerCfg(RslRlOnPolicyRunnerCfg):
             "critic": ["critic"],
             "discriminator": ["amp"],
         }
-        body_names_path = Path(dr02_amp_body_names_path())
+        body_names_path = _ROBOT_DATA_ROOT / "bodies.json"
         body_names = json.loads(body_names_path.read_text(encoding="utf-8"))["body_names"]
         self.algorithm.class_name = "rsl_rl.algorithms:AMP"
-        self.algorithm.motion_dir = dr02_amp_motion_dir()
+        self.algorithm.motion_dir = str(_ROBOT_DATA_ROOT / "datasets")
         # One file per motion kind: every kind ships numbered takes, take 01
         # is the representative sample (e.g. walking_slow01_stageii.npz,
         # 10_WalkInClockwiseCircle01_stageii.npz).

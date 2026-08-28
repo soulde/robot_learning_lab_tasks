@@ -1,15 +1,10 @@
 """Isaac Lab AMP environment configuration for Deeprobotics DR02 Pro."""
 
-import os
-from pathlib import Path
-
 from isaaclab.utils import configclass
 
 from robot_learning_lab_zoo.assets.isaaclab.deeprobotics import DEEPROBOTICS_DR02_PRO_CFG
 from robot_learning_lab_tasks.tasks.isaaclab.manager_based.amp.tracking_env_cfg import AMPEnvCfg
 
-
-_ROBOT_DATA_ROOT = Path(os.environ.get("GMR_PRIVATE_DIR", Path.home() / "GMR-private")) / "retarget_data" / "dr02"
 DR02_JOINT_NAMES = (
     "waist_z_joint", "waist_x_joint", "waist_y_joint",
     "left_shoulder_y_joint", "left_shoulder_x_joint", "left_shoulder_z_joint", "left_elbow_joint",
@@ -36,14 +31,6 @@ DR02_AMP_KEY_BODY_NAMES = (
     "left_shoulder_x_link", "left_elbow_link", "left_wrist_x_link",
     "right_shoulder_x_link", "right_elbow_link", "right_wrist_x_link",
 )
-
-
-def dr02_amp_motion_dir() -> str:
-    return str(_ROBOT_DATA_ROOT / "datasets")
-
-
-def dr02_amp_body_names_path() -> str:
-    return str(_ROBOT_DATA_ROOT / "bodies.json")
 
 
 @configclass
