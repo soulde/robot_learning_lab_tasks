@@ -303,7 +303,7 @@ def dr02_flat_env_cfg(play: bool = False) -> ManagerBasedRlEnvCfg:
     """Create DR02 flat terrain velocity configuration."""
     cfg = dr02_rough_env_cfg(play=play)
 
-    cfg.sim.njmax = 1024  # Random-policy rollouts need up to ~640 constraints.
+    cfg.sim.njmax = 2048  # Chaotic falls drive constraints past 1035 at 1024.
     cfg.sim.mujoco.ccd_iterations = 50
     cfg.sim.contact_sensor_maxmatch = 256
     cfg.sim.nconmax = None
