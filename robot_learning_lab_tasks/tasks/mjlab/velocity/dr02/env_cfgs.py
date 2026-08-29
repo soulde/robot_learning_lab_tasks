@@ -31,6 +31,7 @@ def dr02_rough_env_cfg(play: bool = False) -> ManagerBasedRlEnvCfg:
     """Create DR02 rough terrain velocity configuration."""
     cfg = make_velocity_env_cfg()
 
+    cfg.sim.nconmax = 500  # Rough-terrain contacts exceed the heuristic default.
     cfg.sim.mujoco.ccd_iterations = 500
     cfg.sim.contact_sensor_maxmatch = 500
     cfg.sim.nconmax = 200

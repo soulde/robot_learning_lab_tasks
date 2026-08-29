@@ -16,6 +16,13 @@ def dr02_pro_rough_env_cfg(play: bool = False) -> ManagerBasedRlEnvCfg:
     cfg = dr02_rough_env_cfg(play=play)
     cfg.sim.nconmax = 500
     cfg.scene.entities["robot"] = deepcopy(DEEPROBOTICS_DR02_PRO_CFG)
+    # The Pro model has extra waist_x/y and wrist joints not covered by the
+    # DR02 pose std patterns; extend coverage to all of its joints.
+    for key, std in (("std_walking", 0.2), ("std_running", 0.3)):
+        params = cfg.rewards["pose"].params[key]
+        params[r"waist_x_joint"] = std * 0.5
+        params[r"waist_y_joint"] = std
+        params[r".*wrist_.*_joint"] = std
     cfg.rewards["joint_deviation_torso_l1"] = RewardTermCfg(
         func=lab_rewards.joint_deviation_l1,
         weight=-0.1,
