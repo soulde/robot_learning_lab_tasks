@@ -233,7 +233,7 @@ def unitree_g1_flat_env_cfg(play: bool = False) -> ManagerBasedRlEnvCfg:
 
     cfg.sim.njmax = 500
     cfg.sim.mujoco.ccd_iterations = 50
-    cfg.sim.contact_sensor_maxmatch = 64
+    cfg.sim.contact_sensor_maxmatch = 128
     cfg.sim.nconmax = None
 
     # Switch to flat terrain.
