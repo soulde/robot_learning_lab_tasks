@@ -303,9 +303,9 @@ def dr02_flat_env_cfg(play: bool = False) -> ManagerBasedRlEnvCfg:
     """Create DR02 flat terrain velocity configuration."""
     cfg = dr02_rough_env_cfg(play=play)
 
-    cfg.sim.njmax = 512  # MuJoCo needs >= 358 constraints for this model.
+    cfg.sim.njmax = 1024  # Random-policy rollouts need up to ~640 constraints.
     cfg.sim.mujoco.ccd_iterations = 50
-    cfg.sim.contact_sensor_maxmatch = 128
+    cfg.sim.contact_sensor_maxmatch = 256
     cfg.sim.nconmax = None
 
     assert cfg.scene.terrain is not None
