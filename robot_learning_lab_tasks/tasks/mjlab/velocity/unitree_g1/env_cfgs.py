@@ -260,8 +260,11 @@ def unitree_g1_flat_env_cfg(play: bool = False) -> ManagerBasedRlEnvCfg:
     return cfg
 
 
-def _add_dex3_pose_std(cfg: ManagerBasedRlEnvCfg) -> None:
-    """Cover the Dex3 hand joints missed by the G1 pose std patterns."""
+def _configure_dex3(cfg: ManagerBasedRlEnvCfg) -> None:
+    """Adjust simulation allocation and rewards for the Dex3 hand model."""
+    # The hands generate far more contacts than the heuristic nconmax
+    # allocates; overflow corrupts the solver into NaN observations.
+    cfg.sim.nconmax = 512
     for key, std in (("std_walking", 0.3), ("std_running", 0.3)):
         params = cfg.rewards["pose"].params[key]
         params[r".*_hand_.*_joint"] = std
@@ -272,7 +275,7 @@ def unitree_g1_dex3_rough_env_cfg(play: bool = False) -> ManagerBasedRlEnvCfg:
     cfg = unitree_g1_rough_env_cfg(play=play)
     cfg.scene.entities["robot"] = deepcopy(UNITREE_G1_29DOF_DEX3_CFG)
     cfg.actions["joint_pos"].scale = G1_DEX3_ACTION_SCALE
-    _add_dex3_pose_std(cfg)
+    _configure_dex3(cfg)
     return cfg
 
 
@@ -281,7 +284,7 @@ def unitree_g1_dex3_flat_env_cfg(play: bool = False) -> ManagerBasedRlEnvCfg:
     cfg = unitree_g1_flat_env_cfg(play=play)
     cfg.scene.entities["robot"] = deepcopy(UNITREE_G1_29DOF_DEX3_CFG)
     cfg.actions["joint_pos"].scale = G1_DEX3_ACTION_SCALE
-    _add_dex3_pose_std(cfg)
+    _configure_dex3(cfg)
     return cfg
 
 
