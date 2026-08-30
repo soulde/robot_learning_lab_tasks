@@ -34,7 +34,6 @@ def dr02_rough_env_cfg(play: bool = False) -> ManagerBasedRlEnvCfg:
     cfg.sim.nconmax = 500  # Rough-terrain contacts exceed the heuristic default.
     cfg.sim.mujoco.ccd_iterations = 500
     cfg.sim.contact_sensor_maxmatch = 500
-    cfg.sim.nconmax = 200
 
     cfg.scene.entities = {"robot": deepcopy(DEEPROBOTICS_DR02_STANDARD_CFG)}
     cfg.scene.extent = 2.5
