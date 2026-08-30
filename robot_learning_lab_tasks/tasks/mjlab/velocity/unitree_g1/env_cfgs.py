@@ -38,7 +38,7 @@ def unitree_g1_rough_env_cfg(play: bool = False) -> ManagerBasedRlEnvCfg:
 
     cfg.sim.mujoco.ccd_iterations = 500
     cfg.sim.contact_sensor_maxmatch = 500
-    cfg.sim.nconmax = 70
+    cfg.sim.nconmax = 512  # Rough-terrain contacts need >=179; 70 under-allocates.
 
     cfg.scene.entities = {"robot": deepcopy(UNITREE_G1_29DOF_CFG)}
 
