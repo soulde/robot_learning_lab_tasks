@@ -60,3 +60,36 @@ def bad_motion_body_pos_z_only(
     body_indexes = _get_body_indexes(command, body_names)
     error = torch.abs(command.body_pos_relative_w[:, body_indexes, -1] - command.robot_body_pos_w[:, body_indexes, -1])
     return torch.any(error > threshold, dim=-1)
+
+
+_TRUNK_FALL_TIMERS: dict[int, torch.Tensor] = {}
+
+
+def trunk_contact_grace(
+    env: ManagerBasedRLEnv,
+    threshold: float,
+    sensor_cfg: SceneEntityCfg,
+    grace_time: float = 5.0,
+) -> torch.Tensor:
+    """Terminate on sustained trunk-ground contact instead of instantly.
+
+    A falling robot gets ``grace_time`` seconds of trunk contact to recover
+    (e.g. stand back up) before the episode ends, so future fall-recovery
+    reference motions can actually be learned. The contact timer resets as
+    soon as the trunk leaves the ground and on episode resets.
+    """
+    contact_sensor = env.scene.sensors[sensor_cfg.name]
+    net_contact_forces = contact_sensor.data.net_forces_w_history
+    contact = torch.any(
+        torch.max(torch.norm(net_contact_forces[:, :, sensor_cfg.body_ids], dim=-1), dim=1)[0] > threshold, dim=1
+    )
+
+    key = id(env)
+    timers = _TRUNK_FALL_TIMERS.get(key)
+    if timers is None or timers.shape[0] != env.num_envs:
+        timers = torch.zeros(env.num_envs, device=env.device)
+        _TRUNK_FALL_TIMERS[key] = timers
+    timers[env.episode_length_buf == 0] = 0.0
+    timers += env.step_dt
+    timers[~contact] = 0.0
+    return (timers >= grace_time) & contact

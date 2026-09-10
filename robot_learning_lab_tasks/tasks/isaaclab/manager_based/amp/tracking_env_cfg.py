@@ -6,6 +6,7 @@ from dataclasses import MISSING
 import isaaclab.sim as sim_utils
 from isaaclab.assets import ArticulationCfg, AssetBaseCfg
 from isaaclab.envs import ManagerBasedRLEnvCfg
+from isaaclab.envs.mdp.rewards import base_height_l2
 from isaaclab.managers import EventTermCfg as EventTerm
 from isaaclab.managers import CurriculumTermCfg as CurrTerm
 from isaaclab.managers import ObservationGroupCfg as ObsGroup
@@ -19,6 +20,7 @@ from isaaclab.terrains import TerrainImporterCfg
 from isaaclab.utils import configclass
 from isaaclab.utils.noise import AdditiveUniformNoiseCfg as Unoise
 
+import isaaclab.envs.mdp.events as base_mdp_events
 import robot_learning_lab_tasks.tasks.isaaclab.manager_based.amp.mdp as mdp
 import robot_learning_lab_tasks.tasks.isaaclab.manager_based.locomotion.velocity.mdp as velocity_mdp
 
@@ -73,7 +75,7 @@ class CommandsCfg:
         rel_heading_envs=1.0,
         heading_command=True,
         heading_control_stiffness=0.5,
-        debug_vis=False,
+        debug_vis=True,
         ranges=velocity_mdp.UniformThresholdVelocityCommandCfg.Ranges(
             lin_vel_x=(-1.0, 1.0),
             lin_vel_y=(-1.0, 1.0),
@@ -122,15 +124,15 @@ class ObservationsCfg:
         root_angular_velocity = ObsTerm(func=mdp.amp_root_angular_velocity)
         joint_position = ObsTerm(
             func=mdp.amp_joint_position,
-            params={"asset_cfg": SceneEntityCfg("robot", joint_names=[])},
+            params={"asset_cfg": SceneEntityCfg("robot", joint_names=[], preserve_order=True)},
         )
         joint_velocity = ObsTerm(
             func=mdp.amp_joint_velocity,
-            params={"asset_cfg": SceneEntityCfg("robot", joint_names=[])},
+            params={"asset_cfg": SceneEntityCfg("robot", joint_names=[], preserve_order=True)},
         )
         link_positions = ObsTerm(
             func=mdp.amp_link_positions,
-            params={"asset_cfg": SceneEntityCfg("robot", body_names=[])},
+            params={"asset_cfg": SceneEntityCfg("robot", body_names=[], preserve_order=True)},
         )
 
         def __post_init__(self):
@@ -164,6 +166,44 @@ class EventCfg:
             "operation": "add",
         },
     )
+    # Domain randomization: body masses and actuator gains are scaled at
+    # startup for sim-to-real robustness.
+    randomize_body_mass = EventTerm(
+        func=base_mdp_events.randomize_rigid_body_mass,
+        mode="startup",
+        params={
+            "asset_cfg": SceneEntityCfg("robot", body_names=".*"),
+            "mass_distribution_params": (0.9, 1.1),
+            "operation": "scale",
+            "recompute_inertia": True,
+        },
+    )
+    randomize_actuator_gains = EventTerm(
+        func=base_mdp_events.randomize_actuator_gains,
+        mode="startup",
+        params={
+            "asset_cfg": SceneEntityCfg("robot", joint_names=".*"),
+            "stiffness_distribution_params": (0.9, 1.1),
+            "damping_distribution_params": (0.9, 1.1),
+            "operation": "scale",
+        },
+    )
+    randomize_motor_armature = EventTerm(
+        func=base_mdp_events.randomize_joint_parameters,
+        mode="startup",
+        params={
+            "asset_cfg": SceneEntityCfg(
+                "robot",
+                joint_names=[
+                    ".*_shoulder_[xyz]_joint",
+                    ".*_elbow_joint",
+                    ".*_wrist_[xyz]_joint",
+                ],
+            ),
+            "armature_distribution_params": (0.9, 1.1),
+            "operation": "scale",
+        },
+    )
     randomize_com_positions = EventTerm(
         func=mdp.randomize_rigid_body_com,
         mode="startup",
@@ -174,6 +214,16 @@ class EventCfg:
                 "y": (-0.05, 0.05),
                 "z": (-0.05, 0.05),
             },
+        },
+    )
+    reset_amp_reference_state = EventTerm(
+        func=mdp.reset_amp_reference_state,
+        mode="reset",
+        params={
+            "motion_dir": None,
+            "motion_file_pattern": None,
+            "motion_files": None,
+            "joint_names": None,
         },
     )
     randomize_push_robot = EventTerm(
@@ -227,6 +277,11 @@ class RewardsCfg:
         weight=0.0,
         params={"command_name": "base_velocity", "std": math.sqrt(0.25)},
     )
+    base_height = RewTerm(
+        func=base_height_l2,
+        weight=0.0,
+        params={"target_height": 0.9},
+    )
 
 
 @configclass
@@ -235,6 +290,23 @@ class TerminationsCfg:
     root_height = DoneTerm(
         func=mdp.root_height_below_minimum,
         params={"minimum_height": 0.3},
+    )
+    # Terminate on trunk contact with the ground instead of a root-height
+    # threshold, so crouched-but-alive gaits keep training.
+    torso_contact = DoneTerm(
+        func=mdp.trunk_contact_grace,
+        params={
+            "threshold": 1.0,
+            # 0.0 terminates instantly; recovery task variants raise this
+            # to give fallen robots time to stand back up.
+            "grace_time": 0.0,
+            # Single combined regex so each robot matches its own trunk bodies
+            # (dr02: base_link/body/waist, G1: pelvis/torso_link).
+            "sensor_cfg": SceneEntityCfg(
+                "contact_forces",
+                body_names=r"^(base_link|pelvis|body|torso_link|waist_.*_link)$",
+            ),
+        },
     )
 
 
@@ -275,5 +347,4 @@ class AMPEnvCfg(ManagerBasedRLEnvCfg):
         self.sim.physics_material = self.scene.terrain.physics_material
         self.sim.physx.gpu_max_rigid_patch_count = 10 * 2**15
         self.viewer.eye = (1.5, 1.5, 1.5)
-        self.viewer.origin_type = "asset_root"
-        self.viewer.asset_name = "robot"
+        self.viewer.origin_type = "world"
