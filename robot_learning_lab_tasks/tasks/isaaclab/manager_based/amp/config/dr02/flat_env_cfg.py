@@ -9,7 +9,7 @@ from robot_learning_lab_zoo.assets.isaaclab.deeprobotics import DEEPROBOTICS_DR0
 from robot_learning_lab_tasks.motion_dataset import motion_data_root
 from robot_learning_lab_tasks.tasks.isaaclab.manager_based.amp.tracking_env_cfg import AMPEnvCfg
 
-_ROBOT_DATA_ROOT = motion_data_root() / "dr02"
+_ROBOT_DATA_ROOT = motion_data_root()
 
 
 def dr02_amp_motion_dir() -> str:

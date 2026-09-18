@@ -99,7 +99,7 @@ def amp_root_height(env: ManagerBasedEnv) -> torch.Tensor:
 
 
 def amp_root_orientation(env: ManagerBasedEnv) -> torch.Tensor:
-    quat = env.scene["robot"].data.root_quat_w
+    quat = env.scene["robot"].data.root_quat_w.torch
     mat = matrix_from_quat(quat)
     return mat[..., :2].reshape(env.num_envs, -1)
 
@@ -122,12 +122,12 @@ def amp_joint_velocity(env: ManagerBasedEnv, asset_cfg: SceneEntityCfg) -> torch
 
 def amp_link_positions(env: ManagerBasedEnv, asset_cfg: SceneEntityCfg) -> torch.Tensor:
     robot = env.scene[asset_cfg.name]
-    body_pos = robot.data.body_pos_w[:, asset_cfg.body_ids]
-    body_quat = robot.data.body_quat_w[:, asset_cfg.body_ids]
+    body_pos = robot.data.body_pos_w.torch[:, asset_cfg.body_ids]
+    body_quat = robot.data.body_quat_w.torch[:, asset_cfg.body_ids]
     count = body_pos.shape[1]
     pos_b, _ = subtract_frame_transforms(
-        robot.data.root_pos_w[:, None, :].expand(-1, count, -1),
-        robot.data.root_quat_w[:, None, :].expand(-1, count, -1),
+        robot.data.root_pos_w.torch[:, None, :].expand(-1, count, -1),
+        robot.data.root_quat_w.torch[:, None, :].expand(-1, count, -1),
         body_pos,
         body_quat,
     )
