@@ -3,7 +3,7 @@
 
 from isaaclab.utils import configclass
 
-import isaaclab_tasks.manager_based.locomotion.velocity.mdp as mdp
+import isaaclab_tasks.core.velocity.mdp as mdp
 
 from robot_learning_lab_tasks.tasks.isaaclab.manager_based.locomotion.velocity.velocity_env_cfg import LocomotionVelocityRoughEnvCfg
 
