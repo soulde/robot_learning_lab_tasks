@@ -60,9 +60,11 @@ class DeeproboticsDR02ProAMPFlatPPORunnerCfg(RslRlOnPolicyRunnerCfg):
         self.algorithm.body_names = body_names
         self.algorithm.key_body_names = list(DR02_AMP_KEY_BODY_NAMES)
         self.algorithm.joint_names = list(DR02_JOINT_NAMES)
-        # Task-dominant mixing with a damped style signal.
-        self.algorithm.task_reward_scale = 1.0
-        self.algorithm.style_reward_scale = 0.1
+        # Convex mixing (weights sum to 1), tuned for a steady-state 1:1
+        # contribution balance: env task rewards are dt-scaled (~0.05/step)
+        # while a converged style reward is ~0.7, so 0.93*0.05 = 0.07*0.7.
+        self.algorithm.task_reward_scale = 0.93
+        self.algorithm.style_reward_scale = 0.07
         self.algorithm.discriminator_hidden_dims = [1024, 512]
         self.algorithm.discriminator_learning_rate = 1e-4
         self.algorithm.discriminator_batch_size = 4096

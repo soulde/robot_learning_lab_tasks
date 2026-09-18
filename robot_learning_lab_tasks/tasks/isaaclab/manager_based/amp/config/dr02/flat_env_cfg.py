@@ -127,30 +127,19 @@ class DeeproboticsDR02ProAMPFlatEnvCfg(AMPEnvCfg):
         self.commands.base_velocity.ranges.ang_vel_z = (-1.5, 1.5)
         # Infrequent pushes: 1-3 s pushes overwhelm unstable early gaits.
         self.events.randomize_push_robot.interval_range_s = (10.0, 15.0)
-        # Shorter episodes let the command/terrain curricula react before
-        # long failed rollouts dominate them.
+        # Shorter episodes let the terrain curriculum react before long
+        # failed rollouts dominate it.
         self.episode_length_s = 10.0
-        # Stronger illegal-contact penalty.
-        self.rewards.undesired_contacts.weight = -5.0
-        # Terminate when the torso tilts beyond 70 degrees (matches the
-        # contact-based termination for unrecoverable falls).
-        from isaaclab.envs.mdp.terminations import bad_orientation
-        from isaaclab.managers import TerminationTermCfg as DoneTerm
-        self.terminations.bad_orientation = DoneTerm(
-            func=bad_orientation, params={"limit_angle": 70.0 * 3.141592653589793 / 180.0}
-        )
-        # Trunk-contact-only termination (root_height term disabled); height
-        # is shaped by reward instead of hard termination.
+        # No velocity command curriculum: the full command range is sampled
+        # from the start, so disable both command curriculum terms.
+        self.curriculum.command_levels_lin_vel = None
+        self.curriculum.command_levels_ang_vel = None
+        # Trunk-contact-only termination: no bad_orientation, no root_height.
         self.terminations.root_height = None
-        self.rewards.base_height.weight = -5.0
-        self.rewards.base_height.params["target_height"] = 0.95
-        self.rewards.is_terminated.weight = -10.0
-        # episode length set above (10 s) for faster curriculum reaction
+        # Rewards: task tracking + AMP discriminator (runner side) +
+        # regularizers + undesired contacts only.
         self.rewards.track_lin_vel_xy_exp.weight = 2.0
         self.rewards.track_ang_vel_z_exp.weight = 1.0
-        self.rewards.is_terminated.weight = -200.0
-        self.rewards.ang_vel_xy_l2.weight = -0.1
-        self.rewards.flat_orientation_l2.weight = -0.2
         self.rewards.joint_acc_l2.weight = -1.25e-7
         self.rewards.joint_torques_l2.weight = -1.5e-7
         self.rewards.action_rate_l2.weight = -0.005

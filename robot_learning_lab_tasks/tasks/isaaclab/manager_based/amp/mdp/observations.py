@@ -105,11 +105,11 @@ def amp_root_orientation(env: ManagerBasedEnv) -> torch.Tensor:
 
 
 def amp_root_linear_velocity(env: ManagerBasedEnv) -> torch.Tensor:
-    return env.scene["robot"].data.root_lin_vel_w
+    return env.scene["robot"].data.root_lin_vel_w.torch
 
 
 def amp_root_angular_velocity(env: ManagerBasedEnv) -> torch.Tensor:
-    return env.scene["robot"].data.root_ang_vel_w
+    return env.scene["robot"].data.root_ang_vel_w.torch
 
 
 def amp_joint_position(env: ManagerBasedEnv, asset_cfg: SceneEntityCfg) -> torch.Tensor:
