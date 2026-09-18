@@ -2,10 +2,12 @@
 
 from pathlib import Path
 
+from robot_learning_lab_tasks.motion_dataset import motion_data_root
+
 from rll_rl import AMPRunnerCfg
 
 _G1_MOTION_GLOB = (
-    str(Path.home() / "GMR-private/retarget_data/unitree_g1/motions/dance*.pkl"),
+    str(motion_data_root() / "unitree_g1" / "motions" / "dance*.pkl"),
 )
 
 

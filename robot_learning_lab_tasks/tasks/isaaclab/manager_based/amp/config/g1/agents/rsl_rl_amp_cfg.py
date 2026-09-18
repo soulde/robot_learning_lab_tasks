@@ -40,7 +40,9 @@ class UnitreeG1AMPFlatPPORunnerCfg(RslRlOnPolicyRunnerCfg):
         super().__post_init__()
 
         # AMP-specific configuration
-        motion_dir = str(Path.home() / "GMR-private" / "retarget_data" / "unitree_g1" / "motions")
+        from robot_learning_lab_tasks.motion_dataset import motion_data_root
+
+        motion_dir = str(motion_data_root() / "unitree_g1" / "motions")
 
         # Key body names for AMP discriminator observations
         # Must match command.body_names for dimension consistency
