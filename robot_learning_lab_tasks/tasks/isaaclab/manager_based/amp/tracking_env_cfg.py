@@ -18,7 +18,7 @@ from isaaclab.scene import InteractiveSceneCfg
 from isaaclab.sensors import ContactSensorCfg
 from isaaclab.terrains import TerrainImporterCfg
 from isaaclab.utils import configclass
-from isaaclab.utils.noise import AdditiveUniformNoiseCfg as Unoise
+from isaaclab.utils.noise import UniformNoiseCfg as Unoise
 
 import isaaclab.envs.mdp.events as base_mdp_events
 import robot_learning_lab_tasks.tasks.isaaclab.manager_based.amp.mdp as mdp
@@ -345,6 +345,11 @@ class AMPEnvCfg(ManagerBasedRLEnvCfg):
         self.sim.dt = 0.005
         self.sim.render_interval = self.decimation
         self.sim.physics_material = self.scene.terrain.physics_material
-        self.sim.physx.gpu_max_rigid_patch_count = 10 * 2**15
+        # Isaac Lab v3.0.0-beta2: sim.physx became sim.physics (PhysicsCfg)
+        from isaaclab_physx.physics.physx_manager_cfg import PhysxCfg
+
+        if self.sim.physics is None:
+            self.sim.physics = PhysxCfg()
+        self.sim.physics.gpu_max_rigid_patch_count = 10 * 2**15
         self.viewer.eye = (1.5, 1.5, 1.5)
         self.viewer.origin_type = "world"

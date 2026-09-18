@@ -57,7 +57,7 @@ def track_lin_vel_xy_yaw_frame_exp(
     """
     # extract the used quantities (to enable type-hinting)
     asset = env.scene[asset_cfg.name]
-    vel_yaw = quat_apply_inverse(yaw_quat(asset.data.root_quat_w), asset.data.root_lin_vel_w[:, :3])
+    vel_yaw = quat_apply_inverse(yaw_quat(asset.data.root_quat_w.torch), asset.data.root_lin_vel_w.torch[:, :3])
     lin_vel_error = torch.sum(
         torch.square(env.command_manager.get_command(command_name)[:, :2] - vel_yaw[:, :2]), dim=1
     )
@@ -541,10 +541,10 @@ def feet_height_body(
     footvel_in_body_frame = torch.zeros(env.num_envs, len(asset_cfg.body_ids), 3, device=env.device)
     for i in range(len(asset_cfg.body_ids)):
         footpos_in_body_frame[:, i, :] = math_utils.quat_apply_inverse(
-            asset.data.root_quat_w, cur_footpos_translated[:, i, :]
+            asset.data.root_quat_w.torch, cur_footpos_translated[:, i, :]
         )
         footvel_in_body_frame[:, i, :] = math_utils.quat_apply_inverse(
-            asset.data.root_quat_w, cur_footvel_translated[:, i, :]
+            asset.data.root_quat_w.torch, cur_footvel_translated[:, i, :]
         )
     foot_z_target_error = torch.square(footpos_in_body_frame[:, :, 2] - target_height).view(env.num_envs, -1)
     foot_velocity_tanh = torch.tanh(tanh_mult * torch.norm(footvel_in_body_frame[:, :, :2], dim=2))
@@ -577,7 +577,7 @@ def feet_slide(
     footvel_in_body_frame = torch.zeros(env.num_envs, len(asset_cfg.body_ids), 3, device=env.device)
     for i in range(len(asset_cfg.body_ids)):
         footvel_in_body_frame[:, i, :] = math_utils.quat_apply_inverse(
-            asset.data.root_quat_w, cur_footvel_translated[:, i, :]
+            asset.data.root_quat_w.torch, cur_footvel_translated[:, i, :]
         )
     foot_leteral_vel = torch.sqrt(torch.sum(torch.square(footvel_in_body_frame[:, :, :2]), dim=2)).view(
         env.num_envs, -1

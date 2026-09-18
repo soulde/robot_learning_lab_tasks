@@ -12,6 +12,9 @@ from isaaclab.envs.mdp import *  # noqa: F401, F403
 
 from isaaclab_tasks.manager_based.locomotion.velocity.mdp import *  # noqa: F401, F403
 
+# Isaac Lab v3.0.0-EA: terminations (e.g. terrain_out_of_bounds) moved to core
+from isaaclab_tasks.core.velocity.mdp import *  # noqa: F401, F403
+
 from .commands import *  # noqa: F401, F403
 from .curriculums import *  # noqa: F401, F403
 from .events import *  # noqa: F401, F403

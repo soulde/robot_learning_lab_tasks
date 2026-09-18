@@ -29,8 +29,8 @@ class ZsibotZSL1RoughEnvCfg(LocomotionVelocityRoughEnvCfg):
         super().__post_init__()
 
         self.scene.robot = ZSIBOT_ZSL1_CFG.replace(prim_path="{ENV_REGEX_NS}/Robot")
-        self.scene.height_scanner.prim_path = "{ENV_REGEX_NS}/Robot/" + self.base_link_name
-        self.scene.height_scanner_base.prim_path = "{ENV_REGEX_NS}/Robot/" + self.base_link_name
+        self.scene.height_scanner.prim_path = "{ENV_REGEX_NS}/Robot/Geometry/" + self.base_link_name
+        self.scene.height_scanner_base.prim_path = "{ENV_REGEX_NS}/Robot/Geometry/" + self.base_link_name
 
         # ------------------------------Observations------------------------------
         self.observations.policy.base_lin_vel.scale = 2.0
