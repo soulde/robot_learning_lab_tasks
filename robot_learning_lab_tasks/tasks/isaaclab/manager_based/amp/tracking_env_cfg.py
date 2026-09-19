@@ -277,6 +277,17 @@ class RewardsCfg:
         weight=0.0,
         params={"command_name": "base_velocity", "std": math.sqrt(0.25)},
     )
+    # Unnormalized RMS tracking penalties (chocolate-style), default off.
+    track_lin_vel_xy_rms = RewTerm(
+        func=mdp.track_lin_vel_xy_rms,
+        weight=0.0,
+        params={"command_name": "base_velocity"},
+    )
+    track_ang_vel_z_rms = RewTerm(
+        func=mdp.track_ang_vel_z_rms,
+        weight=0.0,
+        params={"command_name": "base_velocity"},
+    )
     base_height = RewTerm(
         func=base_height_l2,
         weight=0.0,

@@ -11,10 +11,23 @@ from isaaclab.managers import CurriculumTermCfg as CurrTerm
 from isaaclab.utils import configclass
 from isaaclab.terrains import TerrainImporterCfg
 from isaaclab.terrains.config.rough import ROUGH_TERRAINS_CFG
+from isaaclab_newton.physics import NewtonCfg
+from isaaclab_physx.physics import PhysxCfg
+from isaaclab_tasks.core.velocity.velocity_env_cfg import RoughPhysicsCfg
+from isaaclab_tasks.utils import PresetCfg
 
 import robot_learning_lab_tasks.tasks.isaaclab.manager_based.locomotion.velocity.mdp as velocity_mdp
 
 from .flat_env_cfg import DeeproboticsDR02ProAMPFlatEnvCfg
+
+
+@configclass
+class DR02AMPRoughPhysicsCfg(PresetCfg):
+    """Keep the existing PhysX run as default; expose Newton MJWarp explicitly."""
+
+    isaacsim_physx: PhysxCfg = PhysxCfg()
+    default: PhysxCfg = isaacsim_physx
+    newton_mjwarp: NewtonCfg = RoughPhysicsCfg().newton_mjwarp
 
 
 @configclass
@@ -23,6 +36,7 @@ class DeeproboticsDR02ProAMPRoughEnvCfg(DeeproboticsDR02ProAMPFlatEnvCfg):
 
     def __post_init__(self):
         super().__post_init__()
+        self.sim.physics = DR02AMPRoughPhysicsCfg()
 
         # Rough terrain with the standard Isaac Lab terrain set and the
         # velocity-task terrain curriculum.

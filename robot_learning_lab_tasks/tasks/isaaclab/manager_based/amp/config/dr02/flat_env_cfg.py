@@ -4,6 +4,10 @@ import os
 from pathlib import Path
 
 from isaaclab.utils import configclass
+from isaaclab_newton.physics import NewtonCfg
+from isaaclab_physx.physics import PhysxCfg
+from isaaclab_tasks.core.velocity.velocity_env_cfg import RoughPhysicsCfg
+from isaaclab_tasks.utils import PresetCfg
 
 from robot_learning_lab_zoo.assets.isaaclab.deeprobotics import DEEPROBOTICS_DR02_PRO_CFG
 from robot_learning_lab_tasks.motion_dataset import motion_data_root
@@ -13,7 +17,9 @@ _ROBOT_DATA_ROOT = motion_data_root()
 
 
 def dr02_amp_motion_dir() -> str:
-    return str(_ROBOT_DATA_ROOT / "datasets")
+    # Config and motion npz files live together in the robot data dir
+    # (RLL_MOTION_DATA_DIR).
+    return str(_ROBOT_DATA_ROOT)
 
 
 def dr02_amp_body_names_path() -> str:
@@ -97,9 +103,19 @@ def dr02_amp_motion_files() -> list[str]:
 
 
 @configclass
+class DR02AMPFlatPhysicsCfg(PresetCfg):
+    """Physics backends for flat DR02 AMP; PhysX remains the default."""
+
+    isaacsim_physx: PhysxCfg = PhysxCfg()
+    default: PhysxCfg = isaacsim_physx
+    newton_mjwarp: NewtonCfg = RoughPhysicsCfg().newton_mjwarp
+
+
+@configclass
 class DeeproboticsDR02ProAMPFlatEnvCfg(AMPEnvCfg):
     def __post_init__(self):
         super().__post_init__()
+        self.sim.physics = DR02AMPFlatPhysicsCfg()
         self.scene.robot = DEEPROBOTICS_DR02_PRO_CFG.replace(prim_path="{ENV_REGEX_NS}/Robot")
         self.events.randomize_com_positions.params["asset_cfg"].body_names = "base_link"
         self.actions.joint_pos.scale = 0.25
@@ -119,12 +135,12 @@ class DeeproboticsDR02ProAMPFlatEnvCfg(AMPEnvCfg):
         # otherwise. Walking motions use the first 25 frames (0.5 s at
         # 50 fps) for clean initial postures.
         self.events.reset_amp_reference_state.params["reset_frames"] = DR02_AMP_RESET_FRAMES
-        # Asymmetric commands: x [-1, 2], y [-1, 1] m/s. Backward cap below
-        # the forward cap; forward 2 m/s leaves headroom above the
-        # walking_run takes (~1.0-1.1 m/s mean).
-        self.commands.base_velocity.ranges.lin_vel_x = (-1.0, 2.0)
-        self.commands.base_velocity.ranges.lin_vel_y = (-1.0, 1.0)
-        self.commands.base_velocity.ranges.ang_vel_z = (-1.5, 1.5)
+        # Command ranges: 1.5x the chocolate rough curriculum limits
+        # (x [-1.3, 2.4], y [-1.8, 1.8], yaw [-1, 1]); the command
+        # curriculum below starts each run at a small slice of these.
+        self.commands.base_velocity.ranges.lin_vel_x = (-1.95, 3.6)
+        self.commands.base_velocity.ranges.lin_vel_y = (-1.8, 1.8)
+        self.commands.base_velocity.ranges.ang_vel_z = (-1.0, 1.0)
         # Infrequent pushes: 1-3 s pushes overwhelm unstable early gaits.
         self.events.randomize_push_robot.interval_range_s = (10.0, 15.0)
         # Shorter episodes let the terrain curriculum react before long
@@ -136,13 +152,19 @@ class DeeproboticsDR02ProAMPFlatEnvCfg(AMPEnvCfg):
         self.curriculum.command_levels_ang_vel = None
         # Trunk-contact-only termination: no bad_orientation, no root_height.
         self.terminations.root_height = None
-        # Rewards: task tracking + AMP discriminator (runner side) +
-        # regularizers + undesired contacts only.
-        self.rewards.track_lin_vel_xy_exp.weight = 2.0
-        self.rewards.track_ang_vel_z_exp.weight = 1.0
-        self.rewards.joint_acc_l2.weight = -1.25e-7
-        self.rewards.joint_torques_l2.weight = -1.5e-7
-        self.rewards.action_rate_l2.weight = -0.005
-        self.rewards.joint_pos_limits.weight = -0.5
-        self.rewards.undesired_contacts.weight = -1.0
+        # Rewards synced with the chocolate AMP (AmpPose variant) scales:
+        # task tracking + RMS tracking penalties + termination/collision
+        # floors + regularizers; pose and gait shaping stays with AMP.
+        self.rewards.track_lin_vel_xy_exp.weight = 4.0
+        self.rewards.track_ang_vel_z_exp.weight = 2.0
+        self.rewards.track_lin_vel_xy_rms.weight = -0.02
+        self.rewards.track_ang_vel_z_rms.weight = -0.01
+        # Falling must cost, otherwise the policy learns to terminate early
+        # and dodge penalties (chocolate termination floor).
+        self.rewards.is_terminated.weight = -300.0
+        self.rewards.joint_acc_l2.weight = -2.5e-7
+        self.rewards.joint_torques_l2.weight = -1e-4
+        self.rewards.action_rate_l2.weight = -0.1
+        self.rewards.joint_pos_limits.weight = -2.0
+        self.rewards.undesired_contacts.weight = -5.0
         self.rewards.undesired_contacts.params["sensor_cfg"].body_names = ["^(?!.*_ankle_x_link$).*"]

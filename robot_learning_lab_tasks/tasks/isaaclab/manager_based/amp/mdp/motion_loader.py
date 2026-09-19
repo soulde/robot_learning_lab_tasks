@@ -77,11 +77,13 @@ class AmpMotionLibrary:
         self.device = torch.device(device)
         self.joint_pos = torch.tensor(np.concatenate(joint_pos), dtype=torch.float32, device=self.device)
         self.joint_vel = torch.tensor(np.concatenate(joint_vel), dtype=torch.float32, device=self.device)
-        # Root state layout: [x, y, z, qw, qx, qy, qz, vx, vy, vz, wx, wy, wz].
+        # Isaac Lab root state layout: [x, y, z, qx, qy, qz, qw, vx, vy, vz, wx, wy, wz].
         self.root_states = torch.zeros(len(self.joint_pos), 13, dtype=torch.float32, device=self.device)
         self.root_states[:, 0:3] = torch.tensor(np.concatenate(root_pos), dtype=torch.float32, device=self.device)
-        # body_quat_w is WXYZ per the GMR export (MuJoCo xquat), matching Isaac Lab.
-        self.root_states[:, 3:7] = torch.tensor(np.concatenate(root_quat), dtype=torch.float32, device=self.device)
+        # GMR/MuJoCo exports WXYZ; Isaac Lab 3.0 EA root poses use XYZW.
+        self.root_states[:, 3:7] = torch.tensor(
+            np.concatenate(root_quat)[:, [1, 2, 3, 0]], dtype=torch.float32, device=self.device
+        )
         self.root_states[:, 7:10] = torch.tensor(np.concatenate(root_lin_vel), dtype=torch.float32, device=self.device)
         self.root_states[:, 10:13] = torch.tensor(np.concatenate(root_ang_vel), dtype=torch.float32, device=self.device)
         # Build the reset pool per motion from its resolved window; a window

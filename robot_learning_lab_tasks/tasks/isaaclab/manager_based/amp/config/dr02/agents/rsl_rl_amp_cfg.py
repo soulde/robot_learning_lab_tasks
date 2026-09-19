@@ -33,14 +33,17 @@ class DeeproboticsDR02ProAMPFlatPPORunnerCfg(RslRlOnPolicyRunnerCfg):
         value_loss_coef=1.0,
         use_clipped_value_loss=True,
         clip_param=0.2,
-        entropy_coef=0.01,
+        # Looser KL and lower entropy, synced with the chocolate AMP setup:
+        # keeps the adaptive learning rate from collapsing when the terrain
+        # difficulty shifts.
+        entropy_coef=0.005,
         num_learning_epochs=5,
         num_mini_batches=4,
         learning_rate=5.0e-4,
         schedule="adaptive",
         gamma=0.99,
         lam=0.95,
-        desired_kl=0.01,
+        desired_kl=0.02,
         max_grad_norm=1.0,
     )
 
@@ -60,17 +63,20 @@ class DeeproboticsDR02ProAMPFlatPPORunnerCfg(RslRlOnPolicyRunnerCfg):
         self.algorithm.body_names = body_names
         self.algorithm.key_body_names = list(DR02_AMP_KEY_BODY_NAMES)
         self.algorithm.joint_names = list(DR02_JOINT_NAMES)
-        # Convex mixing (weights sum to 1), tuned for a steady-state 1:1
-        # contribution balance: env task rewards are dt-scaled (~0.05/step)
-        # while a converged style reward is ~0.7, so 0.93*0.05 = 0.07*0.7.
-        self.algorithm.task_reward_scale = 0.93
-        self.algorithm.style_reward_scale = 0.07
-        self.algorithm.discriminator_hidden_dims = [1024, 512]
-        self.algorithm.discriminator_learning_rate = 1e-4
+        # Reward mixing synced with chocolate: task share 0.8 and style
+        # reward capped at 0.16 there (amp_reward_coef 0.2 * lerp 0.8); this
+        # fork's style reward peaks at 1.0, so style_reward_scale 0.16 gives
+        # the same task:style ceiling of 5:1.
+        self.algorithm.task_reward_scale = 0.8
+        self.algorithm.style_reward_scale = 0.16
+        # Chocolate discriminator geometry; the fork trains it with a separate
+        # optimizer, so lr follows the fork default rather than the shared
+        # KL-adaptive policy lr, and the update count matches chocolate's
+        # epochs x minibatches (5 x 4) per iteration.
+        self.algorithm.discriminator_hidden_dims = [512, 256]
+        self.algorithm.discriminator_learning_rate = 5.0e-4
         self.algorithm.discriminator_batch_size = 4096
-        # Weaken the discriminator so the style reward can climb while the
-        # policy is still far from the expert distribution.
-        self.algorithm.discriminator_updates = 2
+        self.algorithm.discriminator_updates = 20
         self.algorithm.discriminator_gradient_penalty_scale = 10.0
         # Large discriminator replay buffer keeps older policy samples in the
         # expert/policy comparison.

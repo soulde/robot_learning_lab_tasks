@@ -84,3 +84,28 @@ def feet_contact_time(env: ManagerBasedRLEnv, sensor_cfg: SceneEntityCfg, thresh
     last_contact_time = contact_sensor.data.last_contact_time[:, sensor_cfg.body_ids]
     reward = torch.sum((last_contact_time < threshold) * first_air, dim=-1)
     return reward
+
+
+def track_lin_vel_xy_rms(
+    env: ManagerBasedRLEnv, command_name: str, asset_cfg: SceneEntityCfg = SceneEntityCfg("robot")
+) -> torch.Tensor:
+    """Root-mean-square linear velocity tracking error (base frame, xy).
+
+    Ported from the chocolate AMP setup: an unnormalized L2-style penalty
+    complementing the exponential tracking kernel.
+    """
+    asset = env.scene[asset_cfg.name]
+    error = env.command_manager.get_command(command_name)[:, :2] - asset.data.root_lin_vel_b[:, :2]
+    return torch.sqrt(torch.mean(torch.square(error), dim=-1) + 1e-8)
+
+
+def track_ang_vel_z_rms(
+    env: ManagerBasedRLEnv, command_name: str, asset_cfg: SceneEntityCfg = SceneEntityCfg("robot")
+) -> torch.Tensor:
+    """Root-mean-square yaw velocity tracking error (base frame).
+
+    Ported from the chocolate AMP setup.
+    """
+    asset = env.scene[asset_cfg.name]
+    error = env.command_manager.get_command(command_name)[:, 2] - asset.data.root_ang_vel_b[:, 2]
+    return torch.sqrt(torch.square(error) + 1e-8)

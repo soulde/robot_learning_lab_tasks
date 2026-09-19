@@ -8,7 +8,7 @@ from typing import TYPE_CHECKING
 import torch
 
 from isaaclab.managers import SceneEntityCfg
-from isaaclab.utils.math import matrix_from_quat, subtract_frame_transforms
+from isaaclab.utils.math import matrix_from_quat, quat_apply_inverse
 
 from robot_learning_lab_tasks.tasks.isaaclab.manager_based.amp.mdp.commands import MotionCommand
 
@@ -101,7 +101,9 @@ def amp_root_height(env: ManagerBasedEnv) -> torch.Tensor:
 def amp_root_orientation(env: ManagerBasedEnv) -> torch.Tensor:
     quat = env.scene["robot"].data.root_quat_w.torch
     mat = matrix_from_quat(quat)
-    return mat[..., :2].reshape(env.num_envs, -1)
+    # First two ROWS of the rotation matrix, matching the expert dataset
+    # (BeyondMimic AMP contract). Slicing [..., :2] would take columns.
+    return mat[..., :2, :].reshape(env.num_envs, -1)
 
 
 def amp_root_linear_velocity(env: ManagerBasedEnv) -> torch.Tensor:
@@ -122,13 +124,22 @@ def amp_joint_velocity(env: ManagerBasedEnv, asset_cfg: SceneEntityCfg) -> torch
 
 def amp_link_positions(env: ManagerBasedEnv, asset_cfg: SceneEntityCfg) -> torch.Tensor:
     robot = env.scene[asset_cfg.name]
-    body_pos = robot.data.body_pos_w.torch[:, asset_cfg.body_ids]
-    body_quat = robot.data.body_quat_w.torch[:, asset_cfg.body_ids]
+    # SceneEntityCfg resolves body_ids via find_bodies, which returns
+    # robot-internal ascending order — NOT the configured body_names order.
+    # The expert AMP dataset indexes key bodies in the configured name
+    # order, so resolve the ids here per name to keep both sides aligned.
+    all_names = list(robot.body_names)
+    if asset_cfg.body_names is None:
+        ordered_ids = list(asset_cfg.body_ids)
+    else:
+        names = [asset_cfg.body_names] if isinstance(asset_cfg.body_names, str) else list(asset_cfg.body_names)
+        ordered_ids = [all_names.index(name) for name in names]
+    body_pos = robot.data.body_pos_w.torch[:, ordered_ids]
     count = body_pos.shape[1]
-    pos_b, _ = subtract_frame_transforms(
-        robot.data.root_pos_w.torch[:, None, :].expand(-1, count, -1),
-        robot.data.root_quat_w.torch[:, None, :].expand(-1, count, -1),
-        body_pos,
-        body_quat,
-    )
-    return pos_b.flatten(start_dim=1)
+    # Root-frame projection with the convention-correct quaternion rotate
+    # (this IsaacLab EA stack and the NPZ motion contract are xyzw).
+    pos_b = quat_apply_inverse(
+        robot.data.root_quat_w.torch.repeat_interleave(count, dim=0),
+        (body_pos - robot.data.root_pos_w.torch[:, None, :]).reshape(-1, 3),
+    ).reshape(-1, count * 3)
+    return pos_b
