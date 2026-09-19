@@ -68,6 +68,12 @@ class UnitreeG1AMPFlatEnvCfg(AMPEnvCfg):
 
         self.scene.robot = UNITREE_G1_29DOF_CFG.replace(prim_path="{ENV_REGEX_NS}/Robot")
         self.actions.joint_pos.scale = UNITREE_G1_29DOF_ACTION_SCALE
+        self.actions.joint_pos.joint_names = list(G1_JOINT_NAMES)
+        self.actions.joint_pos.preserve_order = True
+        self.observations.policy.joint_pos.params["asset_cfg"].joint_names = list(G1_JOINT_NAMES)
+        self.observations.policy.joint_vel.params["asset_cfg"].joint_names = list(G1_JOINT_NAMES)
+        self.observations.critic.joint_pos.params["asset_cfg"].joint_names = list(G1_JOINT_NAMES)
+        self.observations.critic.joint_vel.params["asset_cfg"].joint_names = list(G1_JOINT_NAMES)
         self.observations.amp.joint_position.params["asset_cfg"].joint_names = G1_JOINT_NAMES
         self.observations.amp.joint_velocity.params["asset_cfg"].joint_names = G1_JOINT_NAMES
         self.observations.amp.link_positions.params["asset_cfg"].body_names = G1_AMP_LINK_NAMES

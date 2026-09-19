@@ -117,6 +117,16 @@ class DeeproboticsDR02ProAMPFlatEnvCfg(AMPEnvCfg):
         super().__post_init__()
         self.sim.physics = DR02AMPFlatPhysicsCfg()
         self.scene.robot = DEEPROBOTICS_DR02_PRO_CFG.replace(prim_path="{ENV_REGEX_NS}/Robot")
+        # This is the simulator/action/policy order.  The AMP list below is
+        # the motion-file order and may remain different; reset logic maps it
+        # into the articulation order by joint name.
+        sim_joint_names = list(DR02_JOINT_NAMES)
+        self.actions.joint_pos.joint_names = sim_joint_names
+        self.actions.joint_pos.preserve_order = True
+        self.observations.policy.joint_pos.params["asset_cfg"].joint_names = sim_joint_names
+        self.observations.policy.joint_vel.params["asset_cfg"].joint_names = sim_joint_names
+        self.observations.critic.joint_pos.params["asset_cfg"].joint_names = sim_joint_names
+        self.observations.critic.joint_vel.params["asset_cfg"].joint_names = sim_joint_names
         self.events.randomize_com_positions.params["asset_cfg"].body_names = "base_link"
         self.actions.joint_pos.scale = 0.25
         self.observations.amp.joint_position.params["asset_cfg"].joint_names = list(DR02_JOINT_NAMES)
