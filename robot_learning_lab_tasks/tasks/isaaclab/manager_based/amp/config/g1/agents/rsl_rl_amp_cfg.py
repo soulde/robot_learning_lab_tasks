@@ -66,6 +66,7 @@ class UnitreeG1AMPFlatPPORunnerCfg(RslRlOnPolicyRunnerCfg):
         # AMP algorithm parameters
         self.algorithm.class_name = "rsl_rl.algorithms:AMP"
         self.algorithm.motion_dir = motion_dir
+        self.algorithm.motion_quaternion_format = "wxyz"
         self.algorithm.key_body_names = key_body_names
         self.algorithm.task_reward_scale = 0.0
         self.algorithm.style_reward_scale = 1.0

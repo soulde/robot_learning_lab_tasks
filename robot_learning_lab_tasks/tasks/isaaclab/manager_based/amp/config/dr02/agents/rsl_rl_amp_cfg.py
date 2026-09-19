@@ -63,6 +63,8 @@ class DeeproboticsDR02ProAMPFlatPPORunnerCfg(RslRlOnPolicyRunnerCfg):
         self.algorithm.body_names = body_names
         self.algorithm.key_body_names = list(DR02_AMP_KEY_BODY_NAMES)
         self.algorithm.joint_names = list(DR02_JOINT_NAMES)
+        # BeyondMimic/SOMA exports in this motion directory use MuJoCo/GMR WXYZ.
+        self.algorithm.motion_quaternion_format = "wxyz"
         # Reward mixing synced with chocolate: task share 0.8 and style
         # reward capped at 0.16 there (amp_reward_coef 0.2 * lerp 0.8); this
         # fork's style reward peaks at 1.0, so style_reward_scale 0.16 gives
