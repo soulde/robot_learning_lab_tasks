@@ -6,7 +6,6 @@ from dataclasses import MISSING
 import isaaclab.sim as sim_utils
 from isaaclab.assets import ArticulationCfg, AssetBaseCfg
 from isaaclab.envs import ManagerBasedRLEnvCfg
-from isaaclab.envs.mdp.rewards import base_height_l2
 from isaaclab.managers import EventTermCfg as EventTerm
 from isaaclab.managers import CurriculumTermCfg as CurrTerm
 from isaaclab.managers import ObservationGroupCfg as ObsGroup
@@ -260,8 +259,6 @@ class EventCfg:
 @configclass
 class RewardsCfg:
     is_terminated = RewTerm(func=mdp.is_terminated, weight=0.0)
-    ang_vel_xy_l2 = RewTerm(func=mdp.ang_vel_xy_l2, weight=0.0)
-    flat_orientation_l2 = RewTerm(func=mdp.flat_orientation_l2, weight=0.0)
     joint_acc_l2 = RewTerm(func=mdp.joint_acc_l2, weight=-2.5e-7)
     joint_torques_l2 = RewTerm(func=mdp.joint_torques_l2, weight=-1e-5)
     action_rate_l2 = RewTerm(func=mdp.action_rate_l2, weight=-0.1)
@@ -302,11 +299,6 @@ class RewardsCfg:
         weight=0.0,
         params={"command_name": "base_velocity"},
     )
-    base_height = RewTerm(
-        func=base_height_l2,
-        weight=0.0,
-        params={"target_height": 0.9},
-    )
 
 
 @configclass
@@ -325,11 +317,12 @@ class TerminationsCfg:
             # 0.0 terminates instantly; recovery task variants raise this
             # to give fallen robots time to stand back up.
             "grace_time": 0.0,
-            # Single combined regex so each robot matches its own trunk bodies
-            # (dr02: base_link/body/waist, G1: pelvis/torso_link).
+            # Combined regex covers the pelvis/trunk and all upper-body links
+            # (shoulders, elbows, wrists, neck and head) while excluding legs
+            # and feet.  The same pattern works for DR02 and G1 naming.
             "sensor_cfg": SceneEntityCfg(
                 "contact_forces",
-                body_names=r"^(base_link|pelvis|body|torso_link|waist_.*_link)$",
+                body_names=r"^(base_link|pelvis|body|torso_link|waist_.*_link|.*_(shoulder|elbow|wrist|neck|head).*_link)$",
             ),
         },
     )

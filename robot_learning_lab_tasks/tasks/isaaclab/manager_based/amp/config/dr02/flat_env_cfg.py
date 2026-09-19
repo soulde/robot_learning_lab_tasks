@@ -155,7 +155,8 @@ class DeeproboticsDR02ProAMPFlatEnvCfg(AMPEnvCfg):
         self.events.randomize_push_robot.interval_range_s = (10.0, 15.0)
         # Shorter episodes let the terrain curriculum react before long
         # failed rollouts dominate it.
-        self.episode_length_s = 10.0
+        # 2000 simulation steps at the 50 Hz environment step.
+        self.episode_length_s = 40.0
         # No velocity command curriculum: the full command range is sampled
         # from the start, so disable both command curriculum terms.
         self.curriculum.command_levels_lin_vel = None
