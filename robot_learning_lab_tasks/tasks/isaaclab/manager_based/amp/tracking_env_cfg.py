@@ -258,6 +258,7 @@ class EventCfg:
 
 @configclass
 class RewardsCfg:
+    is_alive = RewTerm(func=mdp.is_alive, weight=0.0)
     is_terminated = RewTerm(func=mdp.is_terminated, weight=0.0)
     joint_acc_l2 = RewTerm(func=mdp.joint_acc_l2, weight=-2.5e-7)
     joint_torques_l2 = RewTerm(func=mdp.joint_torques_l2, weight=-1e-5)

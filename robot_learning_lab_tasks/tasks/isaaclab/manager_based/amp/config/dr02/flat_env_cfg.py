@@ -175,6 +175,7 @@ class DeeproboticsDR02ProAMPFlatEnvCfg(AMPEnvCfg):
         self.rewards.track_ang_vel_z_rms.weight = -0.01
         # Falling must cost, otherwise the policy learns to terminate early
         # and dodge penalties (chocolate termination floor).
+        self.rewards.is_alive.weight = 0.2
         self.rewards.is_terminated.weight = -300.0
         self.rewards.joint_acc_l2.weight = -2.5e-7
         self.rewards.joint_torques_l2.weight = -1e-4
