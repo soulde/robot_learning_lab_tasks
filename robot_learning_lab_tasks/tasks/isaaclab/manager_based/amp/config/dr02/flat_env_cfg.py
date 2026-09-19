@@ -163,6 +163,9 @@ class DeeproboticsDR02ProAMPFlatEnvCfg(AMPEnvCfg):
         self.curriculum.command_levels_ang_vel = None
         # Trunk-contact-only termination: no bad_orientation, no root_height.
         self.terminations.root_height = None
+        # Ignore brief upper-body contact transients; terminate after sustained
+        # contact so the broadened pelvis/upper-body mask remains learnable.
+        self.terminations.torso_contact.params["grace_time"] = 0.2
         # Rewards synced with the chocolate AMP (AmpPose variant) scales:
         # task tracking + RMS tracking penalties + termination/collision
         # floors + regularizers; pose and gait shaping stays with AMP.
