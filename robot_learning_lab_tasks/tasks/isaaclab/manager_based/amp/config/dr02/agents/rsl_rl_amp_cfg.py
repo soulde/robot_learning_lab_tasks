@@ -65,21 +65,27 @@ class DeeproboticsDR02ProAMPFlatPPORunnerCfg(RslRlOnPolicyRunnerCfg):
         self.algorithm.joint_names = list(DR02_JOINT_NAMES)
         # BeyondMimic/SOMA exports in this motion directory use MuJoCo/GMR WXYZ.
         self.algorithm.motion_quaternion_format = "wxyz"
-        # Reward mixing synced with chocolate: task share 0.8 and style
-        # reward capped at 0.16 there (amp_reward_coef 0.2 * lerp 0.8); this
-        # fork's style reward peaks at 1.0, so style_reward_scale 0.16 gives
-        # the same task:style ceiling of 5:1.
+        # Chocolate combines rewards as:
+        #   0.8 * task_reward + 0.2 * (0.2 * style_reward)
+        # Its discriminator reward is bounded in [0, 1], so the equivalent
+        # style coefficient in this fork is 0.04, not 0.16.
+        # Exact Chocolate AmpPose mixing:
+        #   0.8 * task_reward + 0.2 * (0.2 * bounded_style_reward)
         self.algorithm.task_reward_scale = 0.8
-        self.algorithm.style_reward_scale = 0.16
+        self.algorithm.style_reward_scale = 0.04
         # Chocolate discriminator geometry; the fork trains it with a separate
         # optimizer, so lr follows the fork default rather than the shared
         # KL-adaptive policy lr, and the update count matches chocolate's
         # epochs x minibatches (5 x 4) per iteration.
         self.algorithm.discriminator_hidden_dims = [512, 256]
+        self.algorithm.discriminator_activation = "lrelu"
         self.algorithm.discriminator_learning_rate = 5.0e-4
         self.algorithm.discriminator_batch_size = 4096
         self.algorithm.discriminator_updates = 20
+        self.algorithm.discriminator_loss_scale = 1.0
+        self.algorithm.discriminator_logit_regularization_scale = 0.0
         self.algorithm.discriminator_gradient_penalty_scale = 10.0
+        self.algorithm.discriminator_weight_decay_scale = 0.0
         # Large discriminator replay buffer keeps older policy samples in the
         # expert/policy comparison.
         self.algorithm.amp_replay_buffer_size = 1_000_000

@@ -8,7 +8,7 @@ from typing import TYPE_CHECKING
 import torch
 
 from isaaclab.managers import SceneEntityCfg
-from isaaclab.utils.math import matrix_from_quat, quat_apply_inverse
+from isaaclab.utils.math import matrix_from_quat, quat_apply, quat_apply_inverse
 
 from robot_learning_lab_tasks.tasks.isaaclab.manager_based.amp.mdp.commands import MotionCommand
 
@@ -122,20 +122,46 @@ def amp_joint_velocity(env: ManagerBasedEnv, asset_cfg: SceneEntityCfg) -> torch
     return env.scene[asset_cfg.name].data.joint_vel[:, asset_cfg.joint_ids]
 
 
-def amp_link_positions(env: ManagerBasedEnv, asset_cfg: SceneEntityCfg) -> torch.Tensor:
+def amp_link_positions(
+    env: ManagerBasedEnv,
+    asset_cfg: SceneEntityCfg,
+    key_body_names: list[str] | None = None,
+    virtual_body_offsets: dict[str, tuple[str, tuple[float, float, float]]] | None = None,
+) -> torch.Tensor:
     robot = env.scene[asset_cfg.name]
-    # SceneEntityCfg resolves body_ids via find_bodies, which returns
-    # robot-internal ascending order — NOT the configured body_names order.
-    # The expert AMP dataset indexes key bodies in the configured name
-    # order, so resolve the ids here per name to keep both sides aligned.
     all_names = list(robot.body_names)
-    if asset_cfg.body_names is None:
-        ordered_ids = list(asset_cfg.body_ids)
+    if key_body_names is None:
+        if asset_cfg.body_names is None:
+            ordered_names = [all_names[index] for index in asset_cfg.body_ids]
+        else:
+            ordered_names = (
+                [asset_cfg.body_names]
+                if isinstance(asset_cfg.body_names, str)
+                else list(asset_cfg.body_names)
+            )
     else:
-        names = [asset_cfg.body_names] if isinstance(asset_cfg.body_names, str) else list(asset_cfg.body_names)
-        ordered_ids = [all_names.index(name) for name in names]
-    body_pos = robot.data.body_pos_w.torch[:, ordered_ids]
-    count = body_pos.shape[1]
+        ordered_names = list(key_body_names)
+
+    virtual_body_offsets = virtual_body_offsets or {}
+    body_pos_all = robot.data.body_pos_w.torch
+    body_quat_all = robot.data.body_quat_w.torch
+    body_positions = []
+    for name in ordered_names:
+        if name in all_names:
+            body_positions.append(body_pos_all[:, all_names.index(name)])
+            continue
+        if name not in virtual_body_offsets:
+            raise ValueError(f"AMP key body '{name}' is neither a robot body nor a configured virtual point")
+        parent_name, local_offset = virtual_body_offsets[name]
+        if parent_name not in all_names:
+            raise ValueError(f"AMP virtual point '{name}' parent body '{parent_name}' was not found")
+        parent_index = all_names.index(parent_name)
+        offset = torch.as_tensor(local_offset, device=body_pos_all.device, dtype=body_pos_all.dtype)
+        offset_w = quat_apply(body_quat_all[:, parent_index], offset.expand(env.num_envs, -1))
+        body_positions.append(body_pos_all[:, parent_index] + offset_w)
+
+    body_pos = torch.stack(body_positions, dim=1)
+    count = len(ordered_names)
     # Root-frame projection with the convention-correct quaternion rotate
     # (this IsaacLab EA stack and the NPZ motion contract are xyzw).
     pos_b = quat_apply_inverse(

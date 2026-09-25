@@ -47,10 +47,18 @@ DR02_AMP_BODY_NAMES = (
     "right_hip_z_link", "right_knee_link", "right_ankle_y_link", "right_ankle_x_link",
 )
 DR02_AMP_KEY_BODY_NAMES = (
-    "base_link", "left_hip_x_link", "left_knee_link", "left_ankle_x_link",
-    "right_hip_x_link", "right_knee_link", "right_ankle_x_link", "body",
-    "left_shoulder_x_link", "left_elbow_link", "left_wrist_x_link",
-    "right_shoulder_x_link", "right_elbow_link", "right_wrist_x_link",
+    "left_ankle_y_link", "left_toe_link",
+    "right_ankle_y_link", "right_toe_link",
+)
+DR02_AMP_VIRTUAL_BODY_OFFSETS = {
+    # GMR's DR02 MJCF defines toe_link as a massless marker fixed to ankle_x_link.
+    # The IsaacLab URDF has no toe body, so reconstruct that same local point.
+    "left_toe_link": ("left_ankle_x_link", (0.11, 0.0, -0.015)),
+    "right_toe_link": ("right_ankle_x_link", (0.11, 0.0, -0.015)),
+}
+DR02_AMP_OBSERVED_BODY_NAMES = (
+    "left_ankle_y_link", "left_ankle_x_link",
+    "right_ankle_y_link", "right_ankle_x_link",
 )
 # AMP motion selection: every dataset take is included EXCEPT the entries
 # below (verified by PD replay / physical checks on 2026-08-26). Add or
@@ -77,9 +85,11 @@ DR02_AMP_MOTION_EXCLUDES = (
 )
 
 
-# RSI reset sampling windows per motion kind (see AmpMotionLibrary).
+# RSI reset sampling windows per motion kind (see AmpMotionLibrary).  Chocolate
+# samples the whole motion for flat AMP; keeping only the first 0.5 s here
+# over-represents the standing preparation pose.
 DR02_AMP_RESET_FRAMES: dict[str, int | None] = {
-    "default": 25,
+    "default": None,
     # future recovery motions may sample every frame:
     # r"(fall|push)_recovery.*\.npz": None,
     # future stair motions only start from their first steps:
@@ -115,8 +125,13 @@ class DR02AMPFlatPhysicsCfg(PresetCfg):
 class DeeproboticsDR02ProAMPFlatEnvCfg(AMPEnvCfg):
     def __post_init__(self):
         super().__post_init__()
+        # Expose pre-reset observations so ~/rsl_rl can build the same
+        # terminal AMP transition as Chocolate.
+        self.compute_final_obs = True
         self.sim.physics = DR02AMPFlatPhysicsCfg()
         self.scene.robot = DEEPROBOTICS_DR02_PRO_CFG.replace(prim_path="{ENV_REGEX_NS}/Robot")
+        # Chocolate evaluates illegal contacts on the current physics frame.
+        self.scene.contact_forces.history_length = 1
         # This is the simulator/action/policy order.  The AMP list below is
         # the motion-file order and may remain different; reset logic maps it
         # into the articulation order by joint name.
@@ -131,25 +146,26 @@ class DeeproboticsDR02ProAMPFlatEnvCfg(AMPEnvCfg):
         self.actions.joint_pos.scale = 0.25
         self.observations.amp.joint_position.params["asset_cfg"].joint_names = list(DR02_JOINT_NAMES)
         self.observations.amp.joint_velocity.params["asset_cfg"].joint_names = list(DR02_JOINT_NAMES)
-        self.observations.amp.link_positions.params["asset_cfg"].body_names = list(DR02_AMP_KEY_BODY_NAMES)
+        self.observations.amp.link_positions.params["asset_cfg"].body_names = list(DR02_AMP_OBSERVED_BODY_NAMES)
+        self.observations.amp.link_positions.params["key_body_names"] = list(DR02_AMP_KEY_BODY_NAMES)
+        self.observations.amp.link_positions.params["virtual_body_offsets"] = DR02_AMP_VIRTUAL_BODY_OFFSETS
         # Reference state initialization: reset into expert motion frames,
         # matching the selection used by the AMP discriminator dataset.
         self.events.reset_amp_reference_state.params["motion_dir"] = dr02_amp_motion_dir()
         self.events.reset_amp_reference_state.params["motion_files"] = dr02_amp_motion_files()
         self.events.reset_amp_reference_state.params["joint_names"] = list(DR02_JOINT_NAMES)
-        # RSI reset sampling follows the velocity command curriculum: jog and
-        # fast motion pools join the resets as the speed range widens.
-        self.events.reset_amp_reference_state.params["rsi_curriculum"] = True
-        # Per-motion RSI sampling windows: entries are regex (on basename)
-        # -> frame count, None/0 samples the whole motion; "default" applies
-        # otherwise. Walking motions use the first 25 frames (0.5 s at
-        # 50 fps) for clean initial postures.
+        # Match chocolate flat: keep RSI reset sampling independent of command
+        # speed and use the flat motion pool throughout training.
+        self.events.reset_amp_reference_state.params["rsi_curriculum"] = False
+        # Sample the full motion for flat AMP RSI, matching chocolate.  A
+        # short initial window would mostly reset into standing preparation
+        # frames instead of the locomotion itself.
         self.events.reset_amp_reference_state.params["reset_frames"] = DR02_AMP_RESET_FRAMES
-        # Command ranges: 1.5x the chocolate rough curriculum limits
-        # (x [-1.3, 2.4], y [-1.8, 1.8], yaw [-1, 1]); the command
-        # curriculum below starts each run at a small slice of these.
-        self.commands.base_velocity.ranges.lin_vel_x = (-1.95, 3.6)
-        self.commands.base_velocity.ranges.lin_vel_y = (-1.8, 1.8)
+        # Match the chocolate flat AMP command distribution.  The smaller
+        # lateral range keeps commands compatible with the flat RSI motions.
+        self.commands.base_velocity.heading_command = False
+        self.commands.base_velocity.ranges.lin_vel_x = (-1.0, 2.0)
+        self.commands.base_velocity.ranges.lin_vel_y = (-0.5, 0.5)
         self.commands.base_velocity.ranges.ang_vel_z = (-1.0, 1.0)
         # Infrequent pushes: 1-3 s pushes overwhelm unstable early gaits.
         self.events.randomize_push_robot.interval_range_s = (10.0, 15.0)
@@ -157,15 +173,16 @@ class DeeproboticsDR02ProAMPFlatEnvCfg(AMPEnvCfg):
         # failed rollouts dominate it.
         # 2000 simulation steps at the 50 Hz environment step.
         self.episode_length_s = 40.0
-        # No velocity command curriculum: the full command range is sampled
-        # from the start, so disable both command curriculum terms.
+        # Flat chocolate uses a fixed command range with no command curriculum.
         self.curriculum.command_levels_lin_vel = None
         self.curriculum.command_levels_ang_vel = None
         # Trunk-contact-only termination: no bad_orientation, no root_height.
         self.terminations.root_height = None
-        # Ignore brief upper-body contact transients; terminate after sustained
-        # contact so the broadened pelvis/upper-body mask remains learnable.
-        self.terminations.torso_contact.params["grace_time"] = 0.2
+        # Chocolate terminates on torso contact without a grace period.
+        self.terminations.torso_contact.params["grace_time"] = 0.0
+        # Chocolate's terminate_after_contacts_on contains only the torso;
+        # for DR02 this is the `body` link, not the whole upper body.
+        self.terminations.torso_contact.params["sensor_cfg"].body_names = "body"
         # Rewards synced with the chocolate AMP (AmpPose variant) scales:
         # task tracking + RMS tracking penalties + termination/collision
         # floors + regularizers; pose and gait shaping stays with AMP.
@@ -181,4 +198,12 @@ class DeeproboticsDR02ProAMPFlatEnvCfg(AMPEnvCfg):
         self.rewards.action_rate_l2.weight = -0.1
         self.rewards.joint_pos_limits.weight = -2.0
         self.rewards.undesired_contacts.weight = -5.0
-        self.rewards.undesired_contacts.params["sensor_cfg"].body_names = ["^(?!.*_ankle_x_link$).*"]
+        # Match Chocolate's selected illegal-contact bodies and 10N threshold.
+        self.rewards.undesired_contacts.params["sensor_cfg"].body_names = [
+            "base_link",
+            "body",
+            "waist_[xz]_link",
+            ".*_hip_y_link",
+            ".*_knee_link",
+        ]
+        self.rewards.undesired_contacts.params["threshold"] = 10.0
