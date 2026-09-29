@@ -7,7 +7,7 @@ from typing import TYPE_CHECKING
 
 import torch
 
-from isaaclab.managers import SceneEntityCfg
+from isaaclab.managers import ManagerTermBase, SceneEntityCfg
 from isaaclab.sensors import ContactSensor
 from isaaclab.utils.math import quat_error_magnitude
 
@@ -109,3 +109,30 @@ def track_ang_vel_z_rms(
     asset = env.scene[asset_cfg.name]
     error = env.command_manager.get_command(command_name)[:, 2] - asset.data.root_ang_vel_b[:, 2]
     return torch.sqrt(torch.square(error) + 1e-8)
+
+
+class ControlStepJointAccL2(ManagerTermBase):
+    """Penalize joint acceleration measured between consecutive control steps.
+
+    Chocolate AMP differences joint velocities over its policy step.  Reset
+    the previous velocity to zero as Chocolate does for every new episode.
+    """
+
+    def __init__(self, cfg, env):
+        super().__init__(cfg, env)
+        self._previous_joint_vel: torch.Tensor | None = None
+
+    def reset(self, env_ids=None) -> None:
+        if self._previous_joint_vel is not None:
+            self._previous_joint_vel[env_ids] = 0.0
+
+    def __call__(
+        self, env: ManagerBasedRLEnv, asset_cfg: SceneEntityCfg = SceneEntityCfg("robot")
+    ) -> torch.Tensor:
+        asset = env.scene[asset_cfg.name]
+        joint_vel = asset.data.joint_vel.torch[:, asset_cfg.joint_ids]
+        if self._previous_joint_vel is None:
+            self._previous_joint_vel = torch.zeros_like(joint_vel)
+        joint_acc = (joint_vel - self._previous_joint_vel) / env.step_dt
+        self._previous_joint_vel.copy_(joint_vel)
+        return torch.sum(torch.square(joint_acc), dim=-1)

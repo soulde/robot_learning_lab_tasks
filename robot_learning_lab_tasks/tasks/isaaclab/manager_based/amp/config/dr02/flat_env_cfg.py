@@ -11,6 +11,7 @@ from isaaclab_tasks.utils import PresetCfg
 
 from robot_learning_lab_zoo.assets.isaaclab.deeprobotics import DEEPROBOTICS_DR02_PRO_CFG
 from robot_learning_lab_tasks.motion_dataset import motion_data_root
+from robot_learning_lab_tasks.tasks.isaaclab.manager_based.amp.mdp.rewards import ControlStepJointAccL2
 from robot_learning_lab_tasks.tasks.isaaclab.manager_based.amp.tracking_env_cfg import AMPEnvCfg
 
 _ROBOT_DATA_ROOT = motion_data_root()
@@ -143,7 +144,10 @@ class DeeproboticsDR02ProAMPFlatEnvCfg(AMPEnvCfg):
         self.observations.critic.joint_pos.params["asset_cfg"].joint_names = sim_joint_names
         self.observations.critic.joint_vel.params["asset_cfg"].joint_names = sim_joint_names
         self.events.randomize_com_positions.params["asset_cfg"].body_names = "base_link"
-        self.actions.joint_pos.scale = 0.25
+        self.actions.joint_pos.scale = 0.5
+        # Keep the AMP input translation invariant; terrain height remains
+        # available to the rough critic through its separate observation.
+        self.observations.amp.root_height = None
         self.observations.amp.joint_position.params["asset_cfg"].joint_names = list(DR02_JOINT_NAMES)
         self.observations.amp.joint_velocity.params["asset_cfg"].joint_names = list(DR02_JOINT_NAMES)
         self.observations.amp.link_positions.params["asset_cfg"].body_names = list(DR02_AMP_OBSERVED_BODY_NAMES)
@@ -193,6 +197,7 @@ class DeeproboticsDR02ProAMPFlatEnvCfg(AMPEnvCfg):
         # Falling must cost, otherwise the policy learns to terminate early
         # and dodge penalties (chocolate termination floor).
         self.rewards.is_terminated.weight = -300.0
+        self.rewards.joint_acc_l2.func = ControlStepJointAccL2
         self.rewards.joint_acc_l2.weight = -2.5e-7
         self.rewards.joint_torques_l2.weight = -1e-4
         self.rewards.action_rate_l2.weight = -0.1

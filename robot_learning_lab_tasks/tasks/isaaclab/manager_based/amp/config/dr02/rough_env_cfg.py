@@ -2,12 +2,15 @@
 
 Same AMP setup as the flat task but the plane is replaced by the Isaac Lab
 rough terrain set with a terrain curriculum, following the existing DR02
-velocity rough tasks. The robot has no height-scan observations (like the
-velocity rough task) and relies on proprioception.
+velocity rough tasks. Terrain heights are privileged critic observations;
+the policy and AMP discriminator retain their existing observations.
 """
 
 import isaaclab.sim as sim_utils
 from isaaclab.managers import CurriculumTermCfg as CurrTerm
+from isaaclab.managers import ObservationTermCfg as ObsTerm
+from isaaclab.managers import SceneEntityCfg
+from isaaclab.sensors import RayCasterCfg, patterns
 from isaaclab.utils import configclass
 from isaaclab.terrains import TerrainImporterCfg
 from isaaclab.terrains.config.rough import ROUGH_TERRAINS_CFG
@@ -17,8 +20,45 @@ from isaaclab_tasks.core.velocity.velocity_env_cfg import RoughPhysicsCfg
 from isaaclab_tasks.utils import PresetCfg
 
 import robot_learning_lab_tasks.tasks.isaaclab.manager_based.locomotion.velocity.mdp as velocity_mdp
+import robot_learning_lab_tasks.tasks.isaaclab.manager_based.amp.mdp as amp_mdp
+from robot_learning_lab_tasks.tasks.isaaclab.manager_based.amp.tracking_env_cfg import AMPSceneCfg, ObservationsCfg
 
 from .flat_env_cfg import DeeproboticsDR02ProAMPFlatEnvCfg
+
+
+def _terrain_height_grid(cfg: patterns.GridPatternCfg, device: str):
+    """Start yaw-aligned rays above the root without shifting the scan grid."""
+    ray_starts, ray_directions = patterns.grid_pattern(cfg, device)
+    ray_starts[:, 2] = 2.0
+    return ray_starts, ray_directions
+
+
+@configclass
+class DR02AMPRoughSceneCfg(AMPSceneCfg):
+    height_scanner = RayCasterCfg(
+        prim_path="{ENV_REGEX_NS}/Robot/Geometry/base_link",
+        ray_alignment="yaw",
+        pattern_cfg=patterns.GridPatternCfg(
+            func=_terrain_height_grid,
+            resolution=0.1,
+            size=(1.6, 1.0),
+            ordering="yx",
+        ),
+        mesh_prim_paths=["/World/ground"],
+        debug_vis=False,
+    )
+
+
+@configclass
+class DR02AMPRoughObservationsCfg(ObservationsCfg):
+    @configclass
+    class CriticCfg(ObservationsCfg.CriticCfg):
+        terrain_heights = ObsTerm(
+            func=amp_mdp.critic_terrain_heights,
+            params={"sensor_cfg": SceneEntityCfg("height_scanner")},
+        )
+
+    critic: CriticCfg = CriticCfg()
 
 
 @configclass
@@ -34,9 +74,13 @@ class DR02AMPRoughPhysicsCfg(PresetCfg):
 class DeeproboticsDR02ProAMPRoughEnvCfg(DeeproboticsDR02ProAMPFlatEnvCfg):
     """DR02 Pro AMP rough terrain training configuration."""
 
+    scene: DR02AMPRoughSceneCfg = DR02AMPRoughSceneCfg(num_envs=4096, env_spacing=2.5)
+    observations: DR02AMPRoughObservationsCfg = DR02AMPRoughObservationsCfg()
+
     def __post_init__(self):
         super().__post_init__()
         self.sim.physics = DR02AMPRoughPhysicsCfg()
+        self.scene.height_scanner.update_period = self.decimation * self.sim.dt
 
         # Rough terrain with the standard Isaac Lab terrain set and the
         # velocity-task terrain curriculum.

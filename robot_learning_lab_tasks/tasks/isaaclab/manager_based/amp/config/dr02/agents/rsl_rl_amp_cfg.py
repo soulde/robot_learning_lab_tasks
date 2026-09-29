@@ -63,6 +63,7 @@ class DeeproboticsDR02ProAMPFlatPPORunnerCfg(RslRlOnPolicyRunnerCfg):
         self.algorithm.body_names = body_names
         self.algorithm.key_body_names = list(DR02_AMP_KEY_BODY_NAMES)
         self.algorithm.joint_names = list(DR02_JOINT_NAMES)
+        self.algorithm.amp_include_root_height = False
         # BeyondMimic/SOMA exports in this motion directory use MuJoCo/GMR WXYZ.
         self.algorithm.motion_quaternion_format = "wxyz"
         # Chocolate combines rewards as:

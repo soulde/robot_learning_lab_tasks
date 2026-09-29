@@ -94,6 +94,15 @@ def base_pos_z(env: ManagerBasedEnv) -> torch.Tensor:
     return robot.data.root_pos_w[:, 2:3]
 
 
+def critic_terrain_heights(
+    env: ManagerBasedEnv, sensor_cfg: SceneEntityCfg, offset: float = 0.5, scale: float = 2.5
+) -> torch.Tensor:
+    """Chocolate-style terrain heights relative to the robot root."""
+    root_z = env.scene["robot"].data.root_pos_w.torch[:, 2:3]
+    terrain_z = env.scene.sensors[sensor_cfg.name].data.ray_hits_w.torch[..., 2]
+    return torch.clamp(root_z - offset - terrain_z, -1.0, 1.0) * scale
+
+
 def amp_root_height(env: ManagerBasedEnv) -> torch.Tensor:
     return env.scene["robot"].data.root_pos_w[:, 2:3]
 
