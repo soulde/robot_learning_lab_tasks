@@ -4,6 +4,7 @@ import os
 from pathlib import Path
 
 from isaaclab.utils import configclass
+from isaaclab.managers import TerminationTermCfg
 from isaaclab_newton.physics import NewtonCfg
 from isaaclab_physx.physics import PhysxCfg
 from isaaclab_tasks.core.velocity.velocity_env_cfg import RoughPhysicsCfg
@@ -11,7 +12,12 @@ from isaaclab_tasks.utils import PresetCfg
 
 from robot_learning_lab_zoo.assets.isaaclab.deeprobotics import DEEPROBOTICS_DR02_PRO_CFG
 from robot_learning_lab_tasks.motion_dataset import motion_data_root
-from robot_learning_lab_tasks.tasks.isaaclab.manager_based.amp.mdp.rewards import ControlStepJointAccL2
+from robot_learning_lab_tasks.tasks.isaaclab.manager_based.amp.mdp.rewards import (
+    ControlStepJointAccL2, track_body_lin_vel_xy_yaw_frame_exp, track_body_lin_vel_xy_yaw_frame_rms,
+    track_body_ang_vel_z_exp, track_body_ang_vel_z_rms,
+)
+from robot_learning_lab_tasks.tasks.isaaclab.manager_based.amp.mdp.commands import HorizontalVelocityCommand
+from robot_learning_lab_tasks.tasks.isaaclab.manager_based.amp.mdp.terminations import torso_to_toe_height_below_minimum
 from robot_learning_lab_tasks.tasks.isaaclab.manager_based.amp.tracking_env_cfg import AMPEnvCfg
 
 _ROBOT_DATA_ROOT = motion_data_root()
@@ -143,6 +149,11 @@ class DeeproboticsDR02ProAMPFlatEnvCfg(AMPEnvCfg):
         self.observations.policy.joint_vel.params["asset_cfg"].joint_names = sim_joint_names
         self.observations.critic.joint_pos.params["asset_cfg"].joint_names = sim_joint_names
         self.observations.critic.joint_vel.params["asset_cfg"].joint_names = sim_joint_names
+        # Match Chocolate's observation boundary for policy/value inputs.
+        for group in (self.observations.policy, self.observations.critic):
+            for term in vars(group).values():
+                if hasattr(term, "func") and hasattr(term, "clip"):
+                    term.clip = (-100.0, 100.0)
         self.events.randomize_com_positions.params["asset_cfg"].body_names = "base_link"
         self.actions.joint_pos.scale = 0.5
         # Keep the AMP input translation invariant; terrain height remains
@@ -168,6 +179,8 @@ class DeeproboticsDR02ProAMPFlatEnvCfg(AMPEnvCfg):
         # Match the chocolate flat AMP command distribution.  The smaller
         # lateral range keeps commands compatible with the flat RSI motions.
         self.commands.base_velocity.heading_command = False
+        self.commands.base_velocity.class_type = HorizontalVelocityCommand
+        self.commands.base_velocity.velocity_body_name = "body"
         self.commands.base_velocity.ranges.lin_vel_x = (-1.0, 2.0)
         self.commands.base_velocity.ranges.lin_vel_y = (-0.5, 0.5)
         self.commands.base_velocity.ranges.ang_vel_z = (-1.0, 1.0)
@@ -180,20 +193,30 @@ class DeeproboticsDR02ProAMPFlatEnvCfg(AMPEnvCfg):
         # Flat chocolate uses a fixed command range with no command curriculum.
         self.curriculum.command_levels_lin_vel = None
         self.curriculum.command_levels_ang_vel = None
-        # Trunk-contact-only termination: no bad_orientation, no root_height.
+        # Match the tagged Chocolate AMP Pose torso-contact and toe-clearance
+        # resets; other illegal contacts are handled by the contact penalty.
         self.terminations.root_height = None
-        # Chocolate terminates on torso contact without a grace period.
+        self.terminations.torso_to_toe_height = TerminationTermCfg(
+            func=torso_to_toe_height_below_minimum,
+            params={"torso_name": "body", "virtual_body_offsets": DR02_AMP_VIRTUAL_BODY_OFFSETS,
+                    "height_ratio": 0.35},
+        )
+        # Reset on the first contact above the configured force threshold.
         self.terminations.torso_contact.params["grace_time"] = 0.0
-        # Chocolate's terminate_after_contacts_on contains only the torso;
-        # for DR02 this is the `body` link, not the whole upper body.
         self.terminations.torso_contact.params["sensor_cfg"].body_names = "body"
         # Rewards synced with the chocolate AMP (AmpPose variant) scales:
         # task tracking + RMS tracking penalties + termination/collision
         # floors + regularizers; pose and gait shaping stays with AMP.
         self.rewards.track_lin_vel_xy_exp.weight = 4.0
+        self.rewards.track_lin_vel_xy_exp.func = track_body_lin_vel_xy_yaw_frame_exp
+        self.rewards.track_lin_vel_xy_rms.func = track_body_lin_vel_xy_yaw_frame_rms
+        self.rewards.track_ang_vel_z_exp.func = track_body_ang_vel_z_exp
+        self.rewards.track_ang_vel_z_rms.func = track_body_ang_vel_z_rms
+        for name in ("track_lin_vel_xy_exp", "track_lin_vel_xy_rms", "track_ang_vel_z_exp", "track_ang_vel_z_rms"):
+            getattr(self.rewards, name).params["body_name"] = "body"
         self.rewards.track_ang_vel_z_exp.weight = 2.0
-        self.rewards.track_lin_vel_xy_rms.weight = -0.02
-        self.rewards.track_ang_vel_z_rms.weight = -0.01
+        self.rewards.track_lin_vel_xy_rms.weight = -0.2
+        self.rewards.track_ang_vel_z_rms.weight = -0.1
         # Falling must cost, otherwise the policy learns to terminate early
         # and dodge penalties (chocolate termination floor).
         self.rewards.is_terminated.weight = -300.0
@@ -202,12 +225,24 @@ class DeeproboticsDR02ProAMPFlatEnvCfg(AMPEnvCfg):
         self.rewards.joint_torques_l2.weight = -1e-4
         self.rewards.action_rate_l2.weight = -0.1
         self.rewards.joint_pos_limits.weight = -2.0
-        self.rewards.undesired_contacts.weight = -5.0
-        # Match Chocolate's selected illegal-contact bodies and 10N threshold.
+        # Preserve the aggregate scale for equal per-joint errors: Chocolate
+        # has 23 actions/joints and DR02 has 29, including six wrist joints.
+        joint_count_scale = 23.0 / len(DR02_JOINT_NAMES)
+        for name in ("joint_acc_l2", "joint_torques_l2", "action_rate_l2", "joint_pos_limits"):
+            getattr(self.rewards, name).weight *= joint_count_scale
+        self.rewards.undesired_contacts.weight = -10.0
+        # Penalize the whole upper body plus the existing hip/knee contacts.
+        # Feet and ankles remain valid support contacts; threshold stays 10 N.
         self.rewards.undesired_contacts.params["sensor_cfg"].body_names = [
             "base_link",
             "body",
-            "waist_[xz]_link",
+            "waist_[xyz]_link",
+            ".*_shoulder_[xyz]_link",
+            ".*_elbow_link",
+            ".*_wrist_[xyz]_link",
+            ".*_hand_link",
+            "neck_link",
+            "head_link",
             ".*_hip_y_link",
             ".*_knee_link",
         ]

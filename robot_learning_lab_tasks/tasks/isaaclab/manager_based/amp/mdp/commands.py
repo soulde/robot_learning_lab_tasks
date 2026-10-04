@@ -19,6 +19,7 @@ from isaaclab.markers.config import FRAME_MARKER_CFG
 from isaaclab.utils import configclass
 from isaaclab.utils.math import (
     quat_apply,
+    quat_apply_inverse,
     quat_error_magnitude,
     quat_from_euler_xyz,
     quat_inv,
@@ -26,6 +27,46 @@ from isaaclab.utils.math import (
     sample_uniform,
     yaw_quat,
 )
+
+from robot_learning_lab_tasks.tasks.isaaclab.manager_based.locomotion.velocity.mdp.commands import (
+    UniformThresholdVelocityCommand,
+)
+
+
+class HorizontalVelocityCommand(UniformThresholdVelocityCommand):
+    """Keep both velocity arrows in the selected body's horizontal yaw frame."""
+
+    def _velocity_body_state(self):
+        body_name = getattr(self.cfg, "velocity_body_name", None)
+        if body_name is None:
+            return (self.robot.data.root_pos_w.torch, self.robot.data.root_quat_w.torch,
+                    self.robot.data.root_lin_vel_w.torch)
+        body_id = self.robot.body_names.index(body_name)
+        return (self.robot.data.body_pos_w.torch[:, body_id], self.robot.data.body_quat_w.torch[:, body_id],
+                self.robot.data.body_lin_vel_w.torch[:, body_id])
+
+    def _resolve_xy_velocity_to_arrow(self, xy_velocity):
+        scale = torch.tensor(self.goal_vel_visualizer.cfg.markers["arrow"].scale, device=self.device)
+        scale = scale.repeat(xy_velocity.shape[0], 1)
+        scale[:, 0] *= torch.linalg.vector_norm(xy_velocity, dim=-1) * 3.0
+        angle = torch.atan2(xy_velocity[:, 1], xy_velocity[:, 0])
+        zeros = torch.zeros_like(angle)
+        rotation = quat_from_euler_xyz(zeros, zeros, angle)
+        return scale, quat_mul(yaw_quat(self._velocity_body_state()[1]), rotation)
+
+    def _debug_vis_callback(self, event):
+        if not self.robot.is_initialized:
+            return
+        body_pos, body_quat, body_vel = self._velocity_body_state()
+        position = body_pos.clone()
+        position += torch.tensor(self.cfg.marker_pos_offset, device=self.device)
+        velocity = quat_apply_inverse(
+            yaw_quat(body_quat), body_vel
+        )
+        for visualizer, xy in ((self.goal_vel_visualizer, self.command[:, :2]),
+                               (self.current_vel_visualizer, velocity[:, :2])):
+            scale, rotation = self._resolve_xy_velocity_to_arrow(xy)
+            visualizer.visualize(position, rotation, scale, environment_ids=self._env.scene._ALL_INDICES)
 
 if TYPE_CHECKING:
     from isaaclab.envs import ManagerBasedRLEnv

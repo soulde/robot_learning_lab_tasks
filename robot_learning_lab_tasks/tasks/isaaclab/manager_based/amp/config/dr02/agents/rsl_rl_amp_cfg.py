@@ -20,9 +20,11 @@ class DeeproboticsDR02ProAMPFlatPPORunnerCfg(RslRlOnPolicyRunnerCfg):
     num_steps_per_env = 24
     max_iterations = 30000
     save_interval = 500
+    clip_actions = 100.0
     experiment_name = "deeprobotics_dr02_pro_amp_flat"
     policy = RslRlPpoActorCriticCfg(
         init_noise_std=1.0,
+        noise_std_type="log",
         actor_obs_normalization=False,
         critic_obs_normalization=False,
         actor_hidden_dims=[512, 256, 128],
@@ -74,10 +76,9 @@ class DeeproboticsDR02ProAMPFlatPPORunnerCfg(RslRlOnPolicyRunnerCfg):
         #   0.8 * task_reward + 0.2 * (0.2 * bounded_style_reward)
         self.algorithm.task_reward_scale = 0.8
         self.algorithm.style_reward_scale = 0.04
-        # Chocolate discriminator geometry; the fork trains it with a separate
-        # optimizer, so lr follows the fork default rather than the shared
-        # KL-adaptive policy lr, and the update count matches chocolate's
-        # epochs x minibatches (5 x 4) per iteration.
+        # Chocolate discriminator geometry; discriminator updates share the
+        # policy's Adam optimizer and KL-adaptive learning rate. Its 20 updates
+        # match the 5 epochs x 4 minibatches below.
         self.algorithm.discriminator_hidden_dims = [512, 256]
         self.algorithm.discriminator_activation = "lrelu"
         self.algorithm.discriminator_learning_rate = 5.0e-4

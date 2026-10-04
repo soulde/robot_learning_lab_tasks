@@ -65,6 +65,26 @@ def bad_motion_body_pos_z_only(
 _TRUNK_FALL_TIMERS: dict[int, torch.Tensor] = {}
 
 
+def torso_to_toe_height_below_minimum(
+    env: ManagerBasedRLEnv,
+    torso_name: str,
+    virtual_body_offsets: dict[str, tuple[str, tuple[float, float, float]]],
+    height_ratio: float = 0.35,
+) -> torch.Tensor:
+    """Match Chocolate AMP Pose's torso clearance above the highest toe."""
+    robot = env.scene["robot"]
+    body_names = list(robot.body_names)
+    torso_z = robot.data.body_pos_w.torch[:, body_names.index(torso_name), 2]
+    toe_heights = []
+    for parent_name, offset in virtual_body_offsets.values():
+        parent_id = body_names.index(parent_name)
+        local_offset = torch.tensor(offset, device=env.device).expand(env.num_envs, -1)
+        world_offset = math_utils.quat_apply(robot.data.body_quat_w.torch[:, parent_id], local_offset)
+        toe_heights.append(robot.data.body_pos_w.torch[:, parent_id, 2] + world_offset[:, 2])
+    highest_toe_z = torch.stack(toe_heights, dim=-1).amax(dim=-1)
+    return torso_z - highest_toe_z < height_ratio * env.cfg.scene.robot.init_state.pos[2]
+
+
 def trunk_contact_grace(
     env: ManagerBasedRLEnv,
     threshold: float,
