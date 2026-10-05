@@ -4,7 +4,6 @@ import os
 from pathlib import Path
 
 from isaaclab.utils import configclass
-from isaaclab.managers import TerminationTermCfg
 from isaaclab_newton.physics import NewtonCfg
 from isaaclab_physx.physics import PhysxCfg
 from isaaclab_tasks.core.velocity.velocity_env_cfg import RoughPhysicsCfg
@@ -17,7 +16,6 @@ from robot_learning_lab_tasks.tasks.isaaclab.manager_based.amp.mdp.rewards impor
     track_body_ang_vel_z_exp, track_body_ang_vel_z_rms,
 )
 from robot_learning_lab_tasks.tasks.isaaclab.manager_based.amp.mdp.commands import HorizontalVelocityCommand
-from robot_learning_lab_tasks.tasks.isaaclab.manager_based.amp.mdp.terminations import torso_to_toe_height_below_minimum
 from robot_learning_lab_tasks.tasks.isaaclab.manager_based.amp.tracking_env_cfg import AMPEnvCfg
 
 _ROBOT_DATA_ROOT = motion_data_root()
@@ -84,24 +82,13 @@ DR02_AMP_MOTION_EXCLUDES = (
     # circle walking is heavily over-represented (154 of 236 takes): keep
     # only take 01 of each circle kind
     r"\d+_WalkIn(?!.*01_stageii\.npz$).*\.npz",
-    # soma-retargeted set (50 Hz, phase-resampled): stairs needs its own
-    # terrain, run and the fast jog_ff family exceed the 2 m/s command cap
-    r"stairs_climbing.*_phase\d+_30hz\.npz",
+    # Flat training: stair clips need their own terrain; keep them out of the
+    # discriminator pool and reference-state initialization.
+    r"stairs.*\.npz",
+    # The phase-resampled run and fast jog_ff families exceed the 2 m/s cap.
     r"run_.*_phase\d+_30hz\.npz",
     r"jog_ff_.*_phase\d+_30hz\.npz",
 )
-
-
-# RSI reset sampling windows per motion kind (see AmpMotionLibrary).  Chocolate
-# samples the whole motion for flat AMP; keeping only the first 0.5 s here
-# over-represents the standing preparation pose.
-DR02_AMP_RESET_FRAMES: dict[str, int | None] = {
-    "default": None,
-    # future recovery motions may sample every frame:
-    # r"(fall|push)_recovery.*\.npz": None,
-    # future stair motions only start from their first steps:
-    # r"stairs.*\.npz": 5,
-}
 
 
 def dr02_amp_motion_files() -> list[str]:
@@ -164,18 +151,6 @@ class DeeproboticsDR02ProAMPFlatEnvCfg(AMPEnvCfg):
         self.observations.amp.link_positions.params["asset_cfg"].body_names = list(DR02_AMP_OBSERVED_BODY_NAMES)
         self.observations.amp.link_positions.params["key_body_names"] = list(DR02_AMP_KEY_BODY_NAMES)
         self.observations.amp.link_positions.params["virtual_body_offsets"] = DR02_AMP_VIRTUAL_BODY_OFFSETS
-        # Reference state initialization: reset into expert motion frames,
-        # matching the selection used by the AMP discriminator dataset.
-        self.events.reset_amp_reference_state.params["motion_dir"] = dr02_amp_motion_dir()
-        self.events.reset_amp_reference_state.params["motion_files"] = dr02_amp_motion_files()
-        self.events.reset_amp_reference_state.params["joint_names"] = list(DR02_JOINT_NAMES)
-        # Match chocolate flat: keep RSI reset sampling independent of command
-        # speed and use the flat motion pool throughout training.
-        self.events.reset_amp_reference_state.params["rsi_curriculum"] = False
-        # Sample the full motion for flat AMP RSI, matching chocolate.  A
-        # short initial window would mostly reset into standing preparation
-        # frames instead of the locomotion itself.
-        self.events.reset_amp_reference_state.params["reset_frames"] = DR02_AMP_RESET_FRAMES
         # Match the chocolate flat AMP command distribution.  The smaller
         # lateral range keeps commands compatible with the flat RSI motions.
         self.commands.base_velocity.heading_command = False
@@ -193,14 +168,10 @@ class DeeproboticsDR02ProAMPFlatEnvCfg(AMPEnvCfg):
         # Flat chocolate uses a fixed command range with no command curriculum.
         self.curriculum.command_levels_lin_vel = None
         self.curriculum.command_levels_ang_vel = None
-        # Match the tagged Chocolate AMP Pose torso-contact and toe-clearance
-        # resets; other illegal contacts are handled by the contact penalty.
+        # Flat AMP terminates on trunk contact only. Toe clearance is not a
+        # fall condition for this task.
         self.terminations.root_height = None
-        self.terminations.torso_to_toe_height = TerminationTermCfg(
-            func=torso_to_toe_height_below_minimum,
-            params={"torso_name": "body", "virtual_body_offsets": DR02_AMP_VIRTUAL_BODY_OFFSETS,
-                    "height_ratio": 0.35},
-        )
+        self.terminations.torso_to_toe_height = None
         # Reset on the first contact above the configured force threshold.
         self.terminations.torso_contact.params["grace_time"] = 0.0
         self.terminations.torso_contact.params["sensor_cfg"].body_names = "body"
@@ -215,21 +186,18 @@ class DeeproboticsDR02ProAMPFlatEnvCfg(AMPEnvCfg):
         for name in ("track_lin_vel_xy_exp", "track_lin_vel_xy_rms", "track_ang_vel_z_exp", "track_ang_vel_z_rms"):
             getattr(self.rewards, name).params["body_name"] = "body"
         self.rewards.track_ang_vel_z_exp.weight = 2.0
-        self.rewards.track_lin_vel_xy_rms.weight = -0.2
-        self.rewards.track_ang_vel_z_rms.weight = -0.1
+        # Match Chocolate AMP Pose's RMS tracking penalties.
+        self.rewards.track_lin_vel_xy_rms.weight = -0.02
+        self.rewards.track_ang_vel_z_rms.weight = -0.01
         # Falling must cost, otherwise the policy learns to terminate early
         # and dodge penalties (chocolate termination floor).
         self.rewards.is_terminated.weight = -300.0
         self.rewards.joint_acc_l2.func = ControlStepJointAccL2
-        self.rewards.joint_acc_l2.weight = -2.5e-7
-        self.rewards.joint_torques_l2.weight = -1e-4
-        self.rewards.action_rate_l2.weight = -0.1
-        self.rewards.joint_pos_limits.weight = -2.0
-        # Preserve the aggregate scale for equal per-joint errors: Chocolate
-        # has 23 actions/joints and DR02 has 29, including six wrist joints.
-        joint_count_scale = 23.0 / len(DR02_JOINT_NAMES)
-        for name in ("joint_acc_l2", "joint_torques_l2", "action_rate_l2", "joint_pos_limits"):
-            getattr(self.rewards, name).weight *= joint_count_scale
+        # Match Isaac Lab G1 flat weights while retaining all DR02 joints.
+        self.rewards.joint_acc_l2.weight = -1.0e-7
+        self.rewards.joint_torques_l2.weight = -2.0e-6
+        self.rewards.action_rate_l2.weight = -0.005
+        self.rewards.joint_pos_limits.weight = -1.0
         self.rewards.undesired_contacts.weight = -10.0
         # Penalize the whole upper body plus the existing hip/knee contacts.
         # Feet and ankles remain valid support contacts; threshold stays 10 N.

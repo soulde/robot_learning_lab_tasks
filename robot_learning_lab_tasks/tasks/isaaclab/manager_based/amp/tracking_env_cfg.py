@@ -131,8 +131,10 @@ class ObservationsCfg:
 
     @configclass
     class AMPCfg(ObsGroup):
-        root_height = ObsTerm(func=mdp.amp_root_height)
-        root_orientation = ObsTerm(func=mdp.amp_root_orientation)
+        # Keep the discriminator contract shared with rsl_rl's expert dataset:
+        # world-frame root velocities, joints, then world-axis root-relative points.
+        root_height: ObsTerm | None = None
+        root_orientation: ObsTerm | None = None
         root_linear_velocity = ObsTerm(func=mdp.amp_root_linear_velocity)
         root_angular_velocity = ObsTerm(func=mdp.amp_root_angular_velocity)
         joint_position = ObsTerm(
@@ -233,10 +235,8 @@ class EventCfg:
         func=mdp.reset_amp_reference_state,
         mode="reset",
         params={
-            "motion_dir": None,
-            "motion_file_pattern": None,
-            "motion_files": None,
-            "joint_names": None,
+            "asset_cfg": SceneEntityCfg("robot"),
+            "terrain_clearance": 0.005,
         },
     )
     randomize_push_robot = EventTerm(

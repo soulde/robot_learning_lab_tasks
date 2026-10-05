@@ -87,7 +87,8 @@ class DeeproboticsDR02ProAMPRoughEnvCfg(DeeproboticsDR02ProAMPFlatEnvCfg):
         self.scene.terrain = TerrainImporterCfg(
             prim_path="/World/ground",
             terrain_type="generator",
-            terrain_generator=ROUGH_TERRAINS_CFG,
+            # Keep difficulty ordered by row without mutating the shared preset.
+            terrain_generator=ROUGH_TERRAINS_CFG.copy().replace(curriculum=True),
             max_init_terrain_level=5,
             collision_group=-1,
             physics_material=sim_utils.RigidBodyMaterialCfg(
@@ -100,5 +101,9 @@ class DeeproboticsDR02ProAMPRoughEnvCfg(DeeproboticsDR02ProAMPFlatEnvCfg):
             debug_vis=False,
         )
         self.sim.physics_material = self.scene.terrain.physics_material
+        # Chocolate AMP Pose spreads RSI spawns within +/-1 m and queries
+        # terrain height at each new XY rather than at the cell origin.
+        self.events.reset_amp_reference_state.params["xy_range"] = (-1.0, 1.0)
+        self.events.reset_amp_reference_state.params["terrain_height_sensor"] = "height_scanner"
         # Terrain difficulty follows walking speed, like the velocity tasks.
         self.curriculum.terrain_levels = CurrTerm(func=velocity_mdp.terrain_levels_vel)

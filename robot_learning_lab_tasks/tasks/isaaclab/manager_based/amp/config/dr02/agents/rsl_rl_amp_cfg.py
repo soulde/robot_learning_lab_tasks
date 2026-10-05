@@ -17,6 +17,9 @@ from ..flat_env_cfg import (
 
 @configclass
 class DeeproboticsDR02ProAMPFlatPPORunnerCfg(RslRlOnPolicyRunnerCfg):
+    # Mix task reward with the Chocolate-scaled bounded style reward.
+    # The previous task/style mixture used 0.2.
+    amp_style_mix_ratio = 0.35
     num_steps_per_env = 24
     max_iterations = 30000
     save_interval = 500
@@ -66,17 +69,21 @@ class DeeproboticsDR02ProAMPFlatPPORunnerCfg(RslRlOnPolicyRunnerCfg):
         self.algorithm.key_body_names = list(DR02_AMP_KEY_BODY_NAMES)
         self.algorithm.joint_names = list(DR02_JOINT_NAMES)
         self.algorithm.amp_include_root_height = False
-        # Dataset type selects the quaternion contract: BeyondMimic is WXYZ;
+        self.algorithm.reference_state_initialization = True
+        self.algorithm.rsi_support_body_boxes = {
+            name: ((0.045, 0.0, -0.045), (0.3, 0.11, 0.06))
+            for name in ("left_ankle_x_link", "right_ankle_x_link")
+        }
+        self.algorithm.rsi_support_clearance = 0.005
+        # The dataset type selects the quaternion contract: BeyondMimic is WXYZ;
         # SOMA uses its XYZW loader when motion_dataset_format="soma".
         self.algorithm.motion_dataset_format = "beyondmimic"
-        # Chocolate combines rewards as:
-        #   0.8 * task_reward + 0.2 * (0.2 * style_reward)
-        # Its discriminator reward is bounded in [0, 1], so the equivalent
-        # style coefficient in this fork is 0.04, not 0.16.
-        # Exact Chocolate AmpPose mixing:
-        #   0.8 * task_reward + 0.2 * (0.2 * bounded_style_reward)
-        self.algorithm.task_reward_scale = 0.8
-        self.algorithm.style_reward_scale = 0.04
+        # AMP computes 0.2 * bounded_style_reward before mixing, as in AMP-Go2.
+        # task_reward_lerp is the task fraction; this config exposes the style fraction.
+        mix = self.amp_style_mix_ratio
+        if not 0.0 <= mix <= 1.0:
+            raise ValueError("amp_style_mix_ratio must be between 0 and 1")
+        self.algorithm.task_reward_lerp = 1.0 - mix
         # Chocolate discriminator geometry; discriminator updates share the
         # policy's Adam optimizer and KL-adaptive learning rate. Its 20 updates
         # match the 5 epochs x 4 minibatches below.

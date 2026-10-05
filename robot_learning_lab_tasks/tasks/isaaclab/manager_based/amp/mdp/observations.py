@@ -8,7 +8,7 @@ from typing import TYPE_CHECKING
 import torch
 
 from isaaclab.managers import SceneEntityCfg
-from isaaclab.utils.math import matrix_from_quat, quat_apply, quat_apply_inverse
+from isaaclab.utils.math import matrix_from_quat, quat_apply
 
 from robot_learning_lab_tasks.tasks.isaaclab.manager_based.amp.mdp.commands import MotionCommand
 
@@ -116,11 +116,11 @@ def amp_root_orientation(env: ManagerBasedEnv) -> torch.Tensor:
 
 
 def amp_root_linear_velocity(env: ManagerBasedEnv) -> torch.Tensor:
-    return env.scene["robot"].data.root_lin_vel_w.torch
+    return env.scene["robot"].data.root_link_lin_vel_w.torch
 
 
 def amp_root_angular_velocity(env: ManagerBasedEnv) -> torch.Tensor:
-    return env.scene["robot"].data.root_ang_vel_w.torch
+    return env.scene["robot"].data.root_link_ang_vel_w.torch
 
 
 def amp_joint_position(env: ManagerBasedEnv, asset_cfg: SceneEntityCfg) -> torch.Tensor:
@@ -171,10 +171,6 @@ def amp_link_positions(
 
     body_pos = torch.stack(body_positions, dim=1)
     count = len(ordered_names)
-    # Root-frame projection with the convention-correct quaternion rotate
-    # (this IsaacLab EA stack and the NPZ motion contract are xyzw).
-    pos_b = quat_apply_inverse(
-        robot.data.root_quat_w.torch.repeat_interleave(count, dim=0),
-        (body_pos - robot.data.root_pos_w.torch[:, None, :]).reshape(-1, 3),
-    ).reshape(-1, count * 3)
-    return pos_b
+    # AMP expert and policy observations both express root-relative points
+    # along world axes; only subtract the root translation.
+    return (body_pos - robot.data.root_pos_w.torch[:, None, :]).reshape(-1, count * 3)

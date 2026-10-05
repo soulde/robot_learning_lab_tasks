@@ -51,76 +51,105 @@ def randomize_joint_default_pos(
         if env_ids != slice(None) and joint_ids != slice(None):
             env_ids = env_ids[:, None]
         asset.data.default_joint_pos[env_ids, joint_ids] = pos
-        # update the offset in action since it is not updated automatically
-        env.action_manager.get_term("joint_pos")._offset[env_ids, joint_ids] = pos
+        # Default poses use articulation order; action offsets use action order.
+        # Refresh from the updated pose through the action's resolved joint IDs,
+        # including when only a subset of articulation joints was randomized.
+        action = env.action_manager.get_term("joint_pos")
+        action_env_ids = env_ids.reshape(-1)
+        action._offset[action_env_ids] = asset.data.default_joint_pos.to(asset.device)[action_env_ids][
+            :, action._joint_ids
+        ]
 
 
 def reset_amp_reference_state(
     env: ManagerBasedEnv,
     env_ids: torch.Tensor | None,
-    motion_dir: str | None = None,
-    motion_file_pattern: str | None = None,
-    motion_files: list[str] | None = None,
-    joint_names: list[str] | None = None,
-    reset_frames: dict[str, int | None] | int | None = None,
-    rsi_curriculum: bool = False,
+    asset_cfg: SceneEntityCfg,
+    terrain_clearance: float = 0.005,
+    xy_range: tuple[float, float] | None = None,
+    terrain_height_sensor: str | None = None,
 ):
-    """Reset environments into sampled expert motion frames (RSI).
-
-    The root pose/velocity and joint states are taken from a uniformly
-    sampled reference frame instead of the default standing pose.
-    """
-    if motion_dir is None:
-        return
-    robot: Articulation = env.scene["robot"]
+    """Reset from the RSL-RL AMP sampler's XYZW reference-state contract."""
     if env_ids is None:
-        env_ids = torch.arange(env.scene.num_envs, device=robot.device)
+        env_ids = torch.arange(env.scene.num_envs, device=env.device)
     if len(env_ids) == 0:
         return
 
-    from robot_learning_lab_tasks.tasks.isaaclab.manager_based.amp.mdp.motion_loader import (
-        get_amp_motion_library,
-    )
+    env = env.unwrapped
+    sampler = getattr(env, "_amp_rsi_sampler", None)
+    if sampler is None:
+        if not getattr(env, "_amp_rsi_initial_reset_deferred", False):
+            env._amp_rsi_initial_reset_deferred = True
+            return
+        raise RuntimeError("AMP RSI reset ran before the runner registered agent.sample_rsi")
+    env._amp_rsi_initial_reset_deferred = True
+    layout = getattr(env, "_amp_rsi_joint_layout", None)
+    if layout is None:
+        raise RuntimeError("AMP RSI reset requires a registered joint layout")
 
-    library = get_amp_motion_library(
-        motion_dir, motion_file_pattern, motion_files, robot.device, reset_frames
-    )
-    # Chocolate-style RSI curriculum: fast motion pools join the resets only
-    # as the velocity command curriculum widens the speed range.
-    pool_probs = _rsi_pool_mix(env) if rsi_curriculum else None
-    root_states, joint_pos, joint_vel = library.sample_reset_states(len(env_ids), pool_probs)
+    env_ids = torch.as_tensor(env_ids, dtype=torch.long, device=env.device)
+    reference = sampler(env_ids)
+    robot: Articulation = env.scene[asset_cfg.name]
+    env_origins = env.scene.env_origins[env_ids]
 
-    # Place the sampled frame at the environment origin. Motions are
-    # captured on flat ground, so the data root height is the height above
-    # the terrain: it is added on top of the environment origin height,
-    # which anchors the spawn onto rough terrain as well.
-    root_states = root_states.clone()
-    root_states[:, 0:2] = env.scene.env_origins[env_ids, 0:2]
-    root_states[:, 2] += env.scene.env_origins[env_ids, 2]
-    robot.write_root_pose_to_sim(root_states[:, 0:7], env_ids=env_ids)
-    robot.write_root_velocity_to_sim(root_states[:, 7:13], env_ids=env_ids)
+    # Mocap XY is not a spawn coordinate; place the sampled pose at each
+    # environment origin and retain the reference height above the terrain.
+    root_position = reference["root_pos"].to(device=robot.device, dtype=torch.float32).clone()
+    root_position[:, 0:2] = env_origins[:, 0:2]
+    if xy_range is not None:
+        root_position[:, 0:2] += torch.empty_like(root_position[:, 0:2]).uniform_(*xy_range)
+    if terrain_height_sensor is None:
+        root_position[:, 2] += env_origins[:, 2]
+    else:
+        root_position[:, 2] += _amp_reset_ground_height(
+            env, root_position[:, 0:2], env_ids, terrain_height_sensor
+        )
+    # RSL-RL's RSI contract already returns Isaac Lab's XYZW root quaternion.
+    root_quat_xyzw = reference["root_quat"].to(device=robot.device, dtype=torch.float32)
+    root_velocity = torch.cat((
+        reference["root_lin_vel"].to(device=robot.device, dtype=torch.float32),
+        reference["root_ang_vel"].to(device=robot.device, dtype=torch.float32),
+    ), dim=-1)
+    if "root_height_offset" in reference:
+        root_position[:, 2] += reference["root_height_offset"].to(device=robot.device, dtype=torch.float32)
+        root_velocity[:, 2] += reference["root_height_velocity_offset"].to(
+            device=robot.device, dtype=torch.float32
+        )
+    else:
+        root_position[:, 2] += terrain_clearance
+    root_pose = torch.cat((root_position, root_quat_xyzw), dim=-1)
+    robot.write_root_pose_to_sim(root_pose, env_ids=env_ids)
+    robot.write_root_link_velocity_to_sim_index(root_velocity=root_velocity, env_ids=env_ids)
 
-    # Reorder motion columns into the articulation's joint order when the
-    # NPZ joint order (joints.json contract) differs from the sim ordering.
-    if joint_names is not None and list(joint_names) != list(robot.joint_names):
-        reorder = [list(joint_names).index(name) for name in robot.joint_names]
-        joint_pos = joint_pos[:, reorder]
-        joint_vel = joint_vel[:, reorder]
+    # The accompanying layout owns the dataset's joint order; map by name to
+    # the articulation order before writing the sampled state.
+    reference_joint_names = list(layout["joint_names"])
+    if reference_joint_names != list(robot.joint_names):
+        if set(reference_joint_names) != set(robot.joint_names):
+            raise ValueError("RSL-RL RSI joint layout does not match the robot articulation")
+        reorder = [reference_joint_names.index(name) for name in robot.joint_names]
+        joint_pos = reference["joint_pos"].to(device=robot.device, dtype=torch.float32)[:, reorder]
+        joint_vel = reference["joint_vel"].to(device=robot.device, dtype=torch.float32)[:, reorder]
+    else:
+        joint_pos = reference["joint_pos"].to(device=robot.device, dtype=torch.float32)
+        joint_vel = reference["joint_vel"].to(device=robot.device, dtype=torch.float32)
     robot.write_joint_state_to_sim(joint_pos, joint_vel, env_ids=env_ids)
 
+def _amp_reset_ground_height(
+    env: ManagerBasedEnv, xy: torch.Tensor, env_ids: torch.Tensor, sensor_name: str
+) -> torch.Tensor:
+    """Query new spawn XY against the scanner mesh, not its stale ray hits."""
+    from isaaclab.utils.warp import raycast_mesh
 
-def _rsi_pool_mix(env: ManagerBasedEnv) -> dict[str, float]:
-    """Speed-pool probabilities from the velocity command curriculum progress.
-
-    jog grows to 25% by half progress, fast to 15% at full progress
-    (chocolate rsi_curriculum mix).
-    """
-    term = env.command_manager.get_term("base_velocity")
-    current = max(abs(term.cfg.ranges.lin_vel_x[0]), abs(term.cfg.ranges.lin_vel_x[1]))
-    target = max(abs(env._original_vel_x[0]), abs(env._original_vel_x[1])) if hasattr(env, "_original_vel_x") else current
-    if target <= 0:
-        return {"base": 1.0, "jog": 0.0, "fast": 0.0}
-    progress = min(1.0, max(0.0, (current - 0.1 * target) / max(0.9 * target, 1e-6)))
-    jog = 0.25 * min(1.0, progress / 0.5)
-    fast = 0.15 * min(1.0, max(0.0, (progress - 0.4) / 0.6))
-    return {"base": 1.0 - jog - fast, "jog": jog, "fast": fast}
+    sensor = env.scene.sensors[sensor_name]
+    mesh = sensor.meshes[(sensor.cfg.mesh_prim_paths[0], str(sensor.device))]
+    ray_starts = torch.zeros((len(env_ids), 3), device=xy.device, dtype=xy.dtype)
+    ray_starts[:, :2] = xy
+    # Start well above the standard 8 m rough terrain cells, including pits.
+    ray_starts[:, 2] = env.scene.env_origins[env_ids, 2] + 20.0
+    ray_directions = torch.zeros_like(ray_starts)
+    ray_directions[:, 2] = -1.0
+    ground_z = raycast_mesh(ray_starts, ray_directions, mesh)[0][:, 2]
+    if not torch.isfinite(ground_z).all():
+        raise RuntimeError("AMP RSI terrain height query missed the ground at a sampled spawn position")
+    return ground_z
