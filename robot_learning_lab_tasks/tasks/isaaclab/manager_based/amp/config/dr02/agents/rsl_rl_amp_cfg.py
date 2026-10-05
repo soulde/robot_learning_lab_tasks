@@ -66,8 +66,9 @@ class DeeproboticsDR02ProAMPFlatPPORunnerCfg(RslRlOnPolicyRunnerCfg):
         self.algorithm.key_body_names = list(DR02_AMP_KEY_BODY_NAMES)
         self.algorithm.joint_names = list(DR02_JOINT_NAMES)
         self.algorithm.amp_include_root_height = False
-        # BeyondMimic/SOMA exports in this motion directory use MuJoCo/GMR WXYZ.
-        self.algorithm.motion_quaternion_format = "wxyz"
+        # Dataset type selects the quaternion contract: BeyondMimic is WXYZ;
+        # SOMA uses its XYZW loader when motion_dataset_format="soma".
+        self.algorithm.motion_dataset_format = "beyondmimic"
         # Chocolate combines rewards as:
         #   0.8 * task_reward + 0.2 * (0.2 * style_reward)
         # Its discriminator reward is bounded in [0, 1], so the equivalent
