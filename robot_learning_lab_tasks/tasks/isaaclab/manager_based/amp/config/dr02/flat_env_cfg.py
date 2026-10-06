@@ -156,8 +156,8 @@ class DeeproboticsDR02ProAMPFlatEnvCfg(AMPEnvCfg):
         self.commands.base_velocity.heading_command = False
         self.commands.base_velocity.class_type = HorizontalVelocityCommand
         self.commands.base_velocity.velocity_body_name = "body"
-        self.commands.base_velocity.ranges.lin_vel_x = (-1.0, 2.0)
-        self.commands.base_velocity.ranges.lin_vel_y = (-0.5, 0.5)
+        self.commands.base_velocity.ranges.lin_vel_x = (-2.0, 4.0)
+        self.commands.base_velocity.ranges.lin_vel_y = (-2.0, 2.0)
         self.commands.base_velocity.ranges.ang_vel_z = (-1.0, 1.0)
         # Infrequent pushes: 1-3 s pushes overwhelm unstable early gaits.
         self.events.randomize_push_robot.interval_range_s = (10.0, 15.0)
